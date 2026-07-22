@@ -70,6 +70,22 @@ reachable" node.
 Seeds and miners are always reachable (never firewalled, never hidden) — they
 are the bootstrap backbone.
 
+### Always-reachable hubs (supernodes)
+
+A node that pins **`hide-my-port: false`** in its *own* `daemon_options` is
+treated as an always-reachable hub: it is **never firewalled and never hidden**,
+regardless of `reachable_fraction` / `hidden_fraction`, and it is also exempt
+from peer turnover. This is the supernode / infrastructure convention used by
+`test_configs/topo1k_supernodes.yaml`, and it is what keeps a handful of stable,
+dialable backbone nodes in an otherwise mostly-NAT network.
+
+This mirrors the pre-firewall behaviour: under `--hide-my-port`, an explicit
+`hide-my-port: false` already opted a node out of un-reachability. The firewall
+now honours the same signal (previously a firewalled supernode would have had
+its P2P port blocked at the host level with no escape — the daemon flag can't
+un-block a host firewall). One helper, `is_pinned_reachable`, gates all three
+exemptions (firewall, hidden, turnover) so they can never drift apart.
+
 **Nuance / limitation:** `hidden_fraction` is a single global fraction (no
 `hidden_by_role` yet). If you combine `reachable_by_role` with a global
 `hidden_fraction`, the per-role nesting guarantee weakens (the firewall is
@@ -118,6 +134,10 @@ counts and long-lived-connection tail to drop further toward mainnet.
 - Generator: `reachable_fraction 0.5` + `hidden_fraction 0.25` on quickstart →
   the firewalled hosts carry `blocked_inbound_ports: [18080]`, the hidden host
   carries `--hide-my-port`, hidden ⊆ firewalled, seeds/miners have neither.
+- Supernode exemption: `topo1k_supernodes.yaml` at `--reachable 0.15` → 842 of
+  1010 hosts firewalled, and **all 5 `hide-my-port: false` supernodes carry no
+  `blocked_inbound_ports`** (they stay dialable hubs); confirms the
+  `is_pinned_reachable` gate on the firewall set.
 - Defaults unchanged: `reachable_fraction 1.0` / `hidden_fraction 0.0` emits
   nothing new — cargo goldens byte-identical, quickstart smoke 19/19 PASS.
 - End-to-end quickstart at `--reachable 0.5` + `hidden_fraction 0.25`: 15

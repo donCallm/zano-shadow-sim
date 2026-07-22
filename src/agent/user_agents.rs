@@ -74,11 +74,26 @@ fn seeded_hash(seed: u64, s: &str) -> u64 {
     h
 }
 
-/// Decide which non-seed agents are unreachable (get `--hide-my-port`).
-/// Roles: `user` (has a wallet) and `relay` (daemon-only). Seeds and miners
-/// are always reachable and excluded entirely (bootstrap backbone). `reachable`
-/// is the global fraction; `by_role` overrides it per role (override semantics,
-/// NOT multiply). For each role, `round((1 - r) * count)` agents are marked
+/// A node that explicitly pins `hide-my-port: false` in its *own* daemon_options
+/// is declaring itself an always-reachable hub (the supernode / infrastructure
+/// convention). Such a node is never firewalled, never hidden, and never cycled
+/// by turnover — it stays a stable, dialable backbone node regardless of the
+/// global reachability/hidden fractions.
+fn is_pinned_reachable(cfg: &AgentConfig) -> bool {
+    cfg.daemon_options
+        .as_ref()
+        .and_then(|o| o.get("hide-my-port"))
+        .map_or(false, |v| matches!(v, OptionValue::Bool(false)))
+}
+
+/// Decide which non-seed agents are unreachable. This set drives BOTH the
+/// synthetic firewall (`blocked_inbound_ports`) and, via a second call with
+/// `hidden_fraction`, the `--hide-my-port` set. Roles: `user` (has a wallet) and
+/// `relay` (daemon-only). Seeds and miners are always reachable and excluded
+/// entirely (bootstrap backbone); so are nodes that pin `hide-my-port: false`
+/// (always-reachable hubs — see [`is_pinned_reachable`]). `reachable` is the
+/// global fraction; `by_role` overrides it per role (override semantics, NOT
+/// multiply). For each role, `round((1 - r) * count)` agents are marked
 /// unreachable, chosen deterministically by seeded hash so runs reproduce.
 fn compute_unreachable_set(
     user_agents: &[(&String, &AgentConfig)],
@@ -97,6 +112,9 @@ fn compute_unreachable_set(
                 .unwrap_or(false);
         if is_seed {
             continue; // seeds + miners always reachable
+        }
+        if is_pinned_reachable(cfg) {
+            continue; // explicit hide-my-port:false = always-reachable hub (supernode)
         }
         let role = if cfg.has_wallet() { "user" } else { "relay" };
         by_role_ids.entry(role).or_default().push(id.to_string());
@@ -182,12 +200,7 @@ fn compute_turnover_set(
         // NOTE: users (has_wallet) take part too now — only the *daemon* cycles;
         // the wallet-rpc + agent stay up and reconnect. Miners are already
         // excluded above via is_miner().
-        let pinned_on = cfg
-            .daemon_options
-            .as_ref()
-            .and_then(|o| o.get("hide-my-port"))
-            .map_or(false, |v| matches!(v, OptionValue::Bool(false)));
-        if pinned_on {
+        if is_pinned_reachable(cfg) {
             continue; // supernodes / explicitly-reachable infra stay always-on
         }
         eligible.push(id.to_string());
