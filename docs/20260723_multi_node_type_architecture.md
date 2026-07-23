@@ -157,10 +157,11 @@ trait NodeImplementation {
 | Shadow-compat spike | — | ✅ PASS (2026-07-23) |
 | Fork setup | Fountain5405/cuprate | ✅ done |
 | Cuprate consensus/network code map | cuprate | ✅ done — FakeChain already exists; P3 shrank to seed-override + interop-verify |
-| P1 abstraction | monerosim | ⏳ next |
-| P2 CupratedImpl + boot-test | monerosim | ⏳ after P1 |
+| P1 abstraction + selection | monerosim | ✅ done — branch `feat/multi-node-type`; byte-identical goldens; `node_implementations` fraction selection, gated cuprate wiring |
+| P2 CupratedImpl render + wiring | monerosim | ✅ done (generation-level) — cuprate relays get cuprated binary + `--config-file` + a materialized FakeChain `Cuprated.toml`; gated by `experimental_cuprate_boot` |
+| P2 boot-test (cuprate in a real sim run) | monerosim | ⏳ next — install cuprated, run a small sim with a cuprate relay under Shadow |
 | P3a verify FakeChain ↔ monerod-regtest interop | cuprate | ✅ static-verified compatible (network-id/genesis/nonce identical; HF schedules both → v1@0, v16@1+); empirical sync test pending P3b |
-| P3b config seed-peer override | cuprate fork | ⏳ THE real remaining impl |
+| P3b config seed-peer override | cuprate fork | ⏳ THE real remaining impl (needs `rustup update` → rustc ≥1.95 to build) |
 | P3c GenerateBlocks RPC (cuprate mining) | cuprate fork | ⏳ optional / native-PoW |
 
 ## Regression gates
