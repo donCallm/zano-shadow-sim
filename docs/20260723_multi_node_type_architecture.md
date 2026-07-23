@@ -1,7 +1,9 @@
 # Multi-node-type architecture: cuprate + generalizable node implementations
 
 **Date:** 2026-07-23
-**Status:** PLAN — committed. P1/P2 target monerosim; P3 targets a cuprate fork.
+**Status:** P1/P2 DONE (monerosim) · P3a runtime-proven · P3b (seed-override) DONE.
+**★ First cuprate ↔ monerod cross-impl sim PASSED 2026-07-23** — see "Cross-implementation
+sim — result". P3c (cuprate mining) is the only remaining optional piece.
 **Prereq proven:** stock `cuprated` runs under shadowformonero (spike PASS, see below).
 
 ## Goal
@@ -113,11 +115,12 @@ trait NodeImplementation {
   **pinned** per the spike caveat; `network` from `NetworkModel`; P2P/RPC bind to
   the sim host IP) and returns args `["--config-file", "<dir>/Cuprated.toml",
   "--skip-config-warning"]`.
-- `capabilities`: `can_mine=false, can_wallet=false, supports_regtest=false,
-  peer_pinning=none`. `preflight` **hard-errors** (clear message) until P3 lands —
-  with an `--experimental-cuprate-boot` escape so we can boot-test cuprate nodes
-  inside a real monerosim run (they start and idle; they won't sync the regtest
-  chain until P3).
+- `capabilities` (as shipped): `can_mine=false, can_wallet=false,
+  supports_regtest=true` (runtime-verified), `peer_pinning=false` (seed_nodes are
+  bootstrap seeds, not persistent pins). `preflight` still **hard-errors** behind an
+  `experimental_cuprate_boot` opt-in — but now because cuprate can't mine/wallet,
+  *not* because it can't sync: with the P3b seed-override a placed cuprate relay
+  boots, peers with monerod, and syncs the regtest chain (see the result section).
 
 ## P3 — cuprate regtest fork (`Fountain5405/cuprate`)
 
@@ -141,7 +144,8 @@ trait NodeImplementation {
      `config.rs`; consumed at `p2p/.../connection_maintainer.rs:106‑109`).
   2. **Verify / align FakeChain ↔ monerod `--regtest --keep-fakechain`** — genesis,
      network-id, difficulty, hardfork schedule must match so blocks validate
-     cross-implementation. **Not yet verified — the key open P3 question.**
+     cross-implementation. **✅ RUNTIME-verified 2026-07-23** — cuprate synced
+     monerod-mined blocks (matching hashes) to tip; see the result section.
   3. **(Optional) `GenerateBlocks` RPC** (stub at `rpc/.../rpc_handler.rs:74‑86`) —
      only if we want cuprate nodes to *mine* (the native-PoW / mining-hooks goal).
      Relay-class cuprate nodes syncing monerod-mined blocks need only 1 + 2.
@@ -149,6 +153,56 @@ trait NodeImplementation {
   **rustc ≥ 1.95** (box has 1.92) → run `rustup update` before P3b source work.
   System C/C++ deps (cmake/clang/gcc) are present. The **prebuilt 0.0.9 gnu binary**
   covers P2 boot-testing, so this blocks neither P1 nor P2.
+
+## Cross-implementation sim — result (2026-07-23)
+
+**First successful cuprate ↔ monerod cross-implementation simulation.** After P3b
+(the seed-node config override) shipped on the fork, an E2E run on the real GML
+topology (`gml_processing/1200_nodes_caida_with_loops.gml`; 15 hosts — 2 monerod
+miners/seeds + 4 relays with `node_implementations: {cuprated: 0.5}` +
+`experimental_cuprate_boot`, so 2 relays render as `cuprated`) proved the interop
+end to end. Shadow exit 0, **0 processes failed**.
+
+- **Boots FakeChain, consensus-aligned with monerod regtest.** cuprated
+  initialized at chain-height 1, hard-fork **V16** — matching monerod
+  `--regtest --keep-fakechain` exactly.
+- **Bidirectional P2P handshake.** monerod logged both `[<cuprate-ip> INC]` and
+  `[<cuprate-ip>:18080 OUT]` for each cuprate node — connections both directions.
+- **Cross-impl block propagation + validation.** `NOTIFY_NEW_FLUFFY_BLOCK`
+  relayed through the cuprate nodes; cuprated logged `incoming_block: Successfully
+  added block` for heights 1–5 with hashes **byte-matching** monerod's height-2…6
+  blocks. cuprate validated and stored monerod-mined blocks to the tip.
+
+This upgrades **P3a from static-verified to runtime-proven**: network-id, genesis,
+and hard-fork schedule are not merely statically identical — a cuprated node
+validated and stored a monerod-mined fakechain over live P2P.
+
+Reproducibility: the run was isolated from a concurrent full-scale sim without a
+worktree — set `general.daemon_data_dir` / `general.shared_dir` to a private
+namespace, invoke `target/release/monerosim --config <cfg> --output <dir>`
+directly, then `shadow -d <dir>/shadow.data <dir>/shadow_output/shadow_agents.yaml`.
+
+### Peer discovery — verified working (not a bug)
+
+A debug-level repro (cuprated `[tracing.stdout] level = "debug"`) confirmed cuprate
+is a **full P2P participant**, not a seed-pinned leaf. It ingests monerod's
+peerlists (`handshaker.rs` → `AddressBook: Received new peer list, length: 7…11`)
+and `connect_to_outbound_peer`s to the wider mesh — in the repro, all reachable
+peers (both miners, the *other* cuprate node, a monerod relay, and 6 fallback
+seeds = 11 distinct). The noisy `No peers in peer list` / `already connected`
+churn is **benign**: cuprate trying to fill its 32-outbound target in a
+sub-32-node test net; it disappears at realistic scale. (An earlier "stuck on 2
+seeds" read was an info-level-logging artifact — the successful
+`connect_to_outbound_peer` lines are DEBUG-only.)
+
+One real-but-inconsequential cuprate quirk: `connect_to_random_seeds`
+(`p2p/p2p/src/connection_maintainer.rs:141`) opens a throwaway probe connection to
+harvest peers and can't re-harvest a seed it is already connected to — cosmetic,
+since passive handshake/timed-sync ingestion does the real discovery. Candidate
+for a low-priority upstream cleanup (fits the PR-back-to-cuprate workflow).
+
+**Net:** relay-class cuprate nodes — P2P peer + block sync — work today. The only
+remaining cuprate gates are **mining** (GenerateBlocks stub, P3c) and **wallet**.
 
 ## Phasing & status
 
@@ -159,9 +213,9 @@ trait NodeImplementation {
 | Cuprate consensus/network code map | cuprate | ✅ done — FakeChain already exists; P3 shrank to seed-override + interop-verify |
 | P1 abstraction + selection | monerosim | ✅ done — branch `feat/multi-node-type`; byte-identical goldens; `node_implementations` fraction selection, gated cuprate wiring |
 | P2 CupratedImpl render + wiring | monerosim | ✅ done (generation-level) — cuprate relays get cuprated binary + `--config-file` + a materialized FakeChain `Cuprated.toml`; gated by `experimental_cuprate_boot` |
-| P2 boot-test (cuprate in a real sim run) | monerosim | ⏳ next — install cuprated, run a small sim with a cuprate relay under Shadow |
-| P3a verify FakeChain ↔ monerod-regtest interop | cuprate | ✅ static-verified compatible (network-id/genesis/nonce identical; HF schedules both → v1@0, v16@1+); empirical sync test pending P3b |
-| P3b config seed-peer override | cuprate fork | ⏳ THE real remaining impl (needs `rustup update` → rustc ≥1.95 to build) |
+| P2 boot-test (cuprate in a real sim run) | monerosim | ✅ done — cross-impl sim PASS 2026-07-23 (boots, peers, syncs; see result section) |
+| P3a verify FakeChain ↔ monerod-regtest interop | cuprate | ✅ RUNTIME-verified 2026-07-23 — cuprate validated+stored monerod-mined blocks (matching hashes) to tip |
+| P3b config seed-peer override | cuprate fork | ✅ done — `seed_nodes` on fork branch `feat/config-seed-nodes` (@30dd459), pushed; monerosim wiring emits it into `Cuprated.toml` |
 | P3c GenerateBlocks RPC (cuprate mining) | cuprate fork | ⏳ optional / native-PoW |
 
 ## Regression gates
