@@ -750,6 +750,13 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
             }
             pa
         };
+        // Raw peer addresses (ip:port) extracted from the monerod-format peer
+        // args, for implementations (cuprate) that take a seed list rather than
+        // per-peer CLI flags. `--flag=ip:port` -> `ip:port`.
+        let peer_addrs: Vec<String> = peer_args
+            .iter()
+            .filter_map(|a| a.rsplit_once('=').map(|(_, addr)| addr.to_string()))
+            .collect();
 
         // Node implementation for this agent. P1: always monerod — the
         // `node_implementations` selection lands in a follow-up (empty => monerod,
@@ -781,6 +788,7 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
             is_miner,
             daemon_options: &merged_daemon_options,
             peer_args: peer_args.as_slice(),
+            peer_addrs: peer_addrs.as_slice(),
         };
         // Gate unsupported placements, then materialize any config files the
         // implementation needs (cuprate's Cuprated.toml) into the stable
