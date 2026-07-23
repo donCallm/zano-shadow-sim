@@ -197,14 +197,21 @@ impl NodeImplementation for MonerodImpl {
 ///
 /// Renders a `Cuprated.toml` for a FakeChain (regtest) node plus
 /// `--config-file`. cuprate's FakeChain network is consensus-compatible with
-/// monerod's `--regtest` (network-id / genesis / hardfork schedule statically
-/// verified — see the design doc), so a cuprated node *can* validate a
-/// monerod-mined fakechain. Two things gate real participation, both tracked as
-/// P3: FakeChain ships an empty seed list with no config override (so a node
-/// can't be wired into the sim topology yet — [`NodeCaps::peer_pinning`] is
-/// false), and mining needs the stubbed GenerateBlocks RPC. Until the seed
-/// override lands, [`preflight`](CupratedImpl::preflight) rejects placement
-/// unless the caller opts into experimental boot-testing.
+/// monerod's `--regtest` (network-id / genesis / hardfork schedule), now proven
+/// at runtime: a cuprated node boots FakeChain, completes a bidirectional P2P
+/// handshake with monerod, and validates + stores monerod-mined blocks (first
+/// cross-impl sim 2026-07-23 — see the design doc). Peers are supplied through
+/// the `seed_nodes` config override carried by our cuprate fork (branch
+/// `feat/config-seed-nodes`); [`render`](CupratedImpl::render) fills it from the
+/// spec's `peer_addrs`, and that is what wires a node into the sim topology.
+/// cuprated is still EXPERIMENTAL, so [`preflight`](CupratedImpl::preflight)
+/// keeps placement behind the caller's explicit opt-in: it cannot mine
+/// (GenerateBlocks RPC is a stub) or run a wallet. Its P2P is otherwise a full
+/// participant — it ingests monerod's peerlists, discovers and connects to the
+/// wider mesh beyond its configured seeds, and syncs blocks (all verified
+/// 2026-07-23). The noisy "No peers in peer list" churn seen in tiny test nets
+/// is just cuprate trying to reach its 32-outbound target in a sub-32-node
+/// network; it goes away at realistic scale.
 ///
 /// The thread/memory knobs are pinned deliberately: under Shadow the `/proc`
 /// files a node reads to auto-size reflect the *host* (many cores / much RAM),
@@ -224,17 +231,18 @@ impl NodeImplementation for CupratedImpl {
         NodeCaps {
             can_mine: false,          // GenerateBlocks RPC is a stub (P3c)
             can_wallet: false,        // cuprate has no wallet
-            supports_regtest: true,   // FakeChain, verified interop-compatible
-            peer_pinning: false,      // no seed override yet (P3b)
+            supports_regtest: true,   // FakeChain, runtime-verified vs monerod regtest
+            peer_pinning: false,      // seed_nodes override gives bootstrap seeds, not persistent peer pins
         }
     }
 
     fn preflight(&self, _spec: &NodeLaunchSpec) -> Result<(), String> {
-        Err("cuprated nodes cannot yet be wired into the sim topology: cuprate's \
-             FakeChain has no configurable seed peers (the P3b seed-override is not \
-             built), so a placed node would find no peers. This is gated until that \
-             lands; opt into experimental cuprate boot-testing to place them anyway \
-             (they boot and idle)."
+        Err("cuprated participation is runtime-proven (boots FakeChain, handshakes \
+             with monerod, discovers the wider peer mesh from monerod's peerlists, \
+             and syncs monerod-mined blocks — all via the seed_nodes override) but \
+             remains EXPERIMENTAL: it cannot mine (GenerateBlocks RPC is a stub) or \
+             run a wallet. Placement is gated until these mature; opt into \
+             experimental cuprate boot-testing to place cuprated nodes anyway."
             .to_string())
     }
 
