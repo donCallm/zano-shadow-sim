@@ -20,7 +20,7 @@ use crate::topology::{
 use crate::utils::binary::resolve_binary_path_for_shadow;
 use crate::utils::duration::parse_duration_to_seconds;
 use crate::utils::options::{merge_options, translate_daemon_log_level};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 /// Context bundle for `process_user_agents`.
@@ -55,6 +55,13 @@ pub struct UserAgentProcessContext<'a> {
     pub reachable_by_role: Option<&'a BTreeMap<String, f64>>,
     /// Global fraction of non-seed nodes that run `--hide-my-port` (0.0 = none).
     pub hidden_fraction: f64,
+    /// Node-implementation selection: maps an implementation id (e.g.
+    /// `"cuprated"`) to the fraction of eligible relay nodes that run it. Empty
+    /// => every node runs monerod (generated output unchanged).
+    pub node_implementations: &'a BTreeMap<String, f64>,
+    /// Opt into placing cuprate nodes before their P3b seed override (they boot
+    /// but find no peers) — boot-testing only; otherwise cuprate is rejected.
+    pub experimental_cuprate_boot: bool,
     /// Simulation stop time in seconds — bounds turnover session generation.
     pub simulation_stop_secs: u64,
     /// Peer-turnover config (None = no turnover; relays stay always-on).
@@ -84,6 +91,72 @@ fn is_pinned_reachable(cfg: &AgentConfig) -> bool {
         .as_ref()
         .and_then(|o| o.get("hide-my-port"))
         .map_or(false, |v| matches!(v, OptionValue::Bool(false)))
+}
+
+/// Assign a node implementation to eligible RELAY-class agents by seeded hash.
+///
+/// Eligible = non-seed, non-miner, wallet-less, phase-less daemon nodes — the
+/// candidates for an alternate implementation (cuprate is relay-class: no
+/// wallet, no mining). Miners and wallet/user nodes always stay monerod, so a
+/// capability mismatch can't arise. `fractions` maps impl_id -> fraction of the
+/// eligible pool; entries are applied in id order over a seeded-hash ordering of
+/// the pool, partitioning it into disjoint sets (fractions are of the TOTAL
+/// eligible pool; sum <= 1.0 expected, over-assignment is clamped to what's
+/// left). monerod is the implicit default and never appears in the returned map.
+/// Returns agent_id -> impl_id. Empty / all-monerod `fractions` => empty map.
+fn compute_node_impl_set(
+    user_agents: &[(&String, &AgentConfig)],
+    seed: u64,
+    fractions: &BTreeMap<String, f64>,
+) -> HashMap<String, String> {
+    let mut assignment = HashMap::new();
+    if fractions
+        .iter()
+        .all(|(id, f)| id == "monerod" || *f <= 0.0)
+    {
+        return assignment;
+    }
+    let mut eligible: Vec<String> = Vec::new();
+    for (id, cfg) in user_agents {
+        if cfg.is_miner() {
+            continue; // mines via generateblocks — monerod only
+        }
+        if cfg.has_wallet() {
+            continue; // wallet/user node — monerod only (cuprate has no wallet)
+        }
+        if cfg.has_daemon_phases() {
+            continue; // upgrade-phase node — monerod only
+        }
+        let is_seed = cfg
+            .attributes
+            .as_ref()
+            .map(|a| a.get("is_seed_node").map_or(false, |v| v == "true"))
+            .unwrap_or(false);
+        if is_seed {
+            continue; // bootstrap backbone — monerod only
+        }
+        eligible.push(id.to_string());
+    }
+    eligible.sort_by_key(|id| seeded_hash(seed, &format!("nodeimpl:{}", id)));
+
+    let n = eligible.len();
+    let mut cursor = 0usize;
+    for (impl_id, frac) in fractions {
+        if impl_id == "monerod" {
+            continue; // implicit default
+        }
+        let frac = frac.clamp(0.0, 1.0);
+        if frac <= 0.0 {
+            continue;
+        }
+        let remaining = n.saturating_sub(cursor);
+        let count = ((frac * n as f64).round() as usize).min(remaining);
+        for id in eligible.iter().skip(cursor).take(count) {
+            assignment.insert(id.clone(), impl_id.clone());
+        }
+        cursor += count;
+    }
+    assignment
 }
 
 /// Decide which non-seed agents are unreachable. This set drives BOTH the
@@ -298,6 +371,8 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
         reachable_fraction,
         reachable_by_role,
         hidden_fraction,
+        node_implementations,
+        experimental_cuprate_boot,
         simulation_stop_secs,
         turnover,
     } = ctx;
@@ -424,6 +499,17 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
         Some(c) => compute_turnover_set(&user_agents, simulation_seed, c.fraction),
         None => HashSet::new(),
     };
+
+    // Assign alternate node implementations (e.g. cuprate) to eligible relay
+    // nodes. Empty node_implementations => empty map => every node is monerod.
+    let node_impl_assignment =
+        compute_node_impl_set(&user_agents, simulation_seed, node_implementations);
+    if !node_impl_assignment.is_empty() {
+        log::info!(
+            "Node implementations: {} node(s) assigned a non-monerod implementation",
+            node_impl_assignment.len()
+        );
+    }
     let turnover_params: Option<(f64, f64, f64, f64, f64)> = match turnover {
         Some(c) => {
             let mean_session = parse_duration_to_seconds(&c.mean_session).map_err(|e| {
@@ -669,9 +755,24 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
         // `node_implementations` selection lands in a follow-up (empty => monerod,
         // keeping output byte-identical). The spec is implementation-independent;
         // the impl renders it into concrete args (+ any config files).
-        let node_implementation = crate::agent::node_impl::MonerodImpl;
+        // Select this agent's node implementation (default monerod). Assignment
+        // is empty unless general.node_implementations was set, so the monerod
+        // path is unchanged.
+        let impl_id: &str = node_impl_assignment
+            .get(*agent_id)
+            .map(|s| s.as_str())
+            .unwrap_or("monerod");
+        let node_implementation =
+            crate::agent::node_impl::resolve_node_impl(impl_id).ok_or_else(|| {
+                color_eyre::eyre::eyre!(
+                    "Agent '{}': unknown node implementation '{}'",
+                    agent_id,
+                    impl_id
+                )
+            })?;
         let launch_spec = crate::agent::node_impl::NodeLaunchSpec {
             data_dir: format!("{}/monero-{}", daemon_data_dir, agent_id),
+            config_dir: format!("{}/cuprate-{}", daemon_data_dir, agent_id),
             agent_ip: agent_ip.as_str(),
             rpc_port: daemon_rpc_port,
             p2p_port,
@@ -681,6 +782,48 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
             daemon_options: &merged_daemon_options,
             peer_args: peer_args.as_slice(),
         };
+        // Gate unsupported placements, then materialize any config files the
+        // implementation needs (cuprate's Cuprated.toml) into the stable
+        // config_dir (survives the pre-sim `monero-*` cleanup). monerod:
+        // preflight Ok + no config files => no-op, output unchanged.
+        {
+            use crate::agent::node_impl::NodeImplementation;
+            if let Err(reason) = node_implementation.preflight(&launch_spec) {
+                if !experimental_cuprate_boot {
+                    return Err(color_eyre::eyre::eyre!(
+                        "Agent '{}': node implementation '{}' cannot be placed: {} \
+                         Set general.experimental_cuprate_boot: true to override \
+                         (boot-testing only).",
+                        agent_id,
+                        impl_id,
+                        reason
+                    ));
+                }
+                log::warn!(
+                    "Agent '{}': placing '{}' despite preflight ({})",
+                    agent_id,
+                    impl_id,
+                    reason
+                );
+            }
+            let rendered = node_implementation.render(&launch_spec, None);
+            if !rendered.config_files.is_empty() {
+                std::fs::create_dir_all(&launch_spec.config_dir).map_err(|e| {
+                    color_eyre::eyre::eyre!(
+                        "Agent '{}': create config dir '{}': {}",
+                        agent_id,
+                        launch_spec.config_dir,
+                        e
+                    )
+                })?;
+                for cf in &rendered.config_files {
+                    let path = format!("{}/{}", launch_spec.config_dir, cf.rel_path);
+                    std::fs::write(&path, &cf.contents).map_err(|e| {
+                        color_eyre::eyre::eyre!("Agent '{}': write '{}': {}", agent_id, path, e)
+                    })?;
+                }
+            }
+        }
         let build_daemon_args_base = |phase_args: Option<&Vec<String>>| -> Vec<String> {
             use crate::agent::node_impl::NodeImplementation;
             node_implementation.render(&launch_spec, phase_args).args
@@ -758,18 +901,35 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
             let daemon_args = build_daemon_args_base(user_agent_config.daemon_args.as_ref());
 
             // Get daemon binary path from config, fall back to default
-            let daemon_binary_path = match &user_agent_config.daemon {
-                Some(DaemonConfig::Local(path)) => {
-                    resolve_binary_path_for_shadow(path).map_err(|e| {
+            // Assigned a non-monerod implementation => use that impl's binary
+            // (ignoring any explicit `daemon:` name, which defaults to monerod in
+            // configs). Otherwise keep the historical resolution exactly.
+            let daemon_binary_path = if impl_id != "monerod" {
+                use crate::agent::node_impl::NodeImplementation;
+                resolve_binary_path_for_shadow(node_implementation.default_binary()).map_err(
+                    |e| {
                         color_eyre::eyre::eyre!(
-                            "Agent '{}': failed to resolve daemon binary path '{}': {}",
+                            "Agent '{}': failed to resolve '{}' binary: {}",
                             agent_id,
-                            path,
+                            node_implementation.default_binary(),
                             e
                         )
-                    })?
+                    },
+                )?
+            } else {
+                match &user_agent_config.daemon {
+                    Some(DaemonConfig::Local(path)) => {
+                        resolve_binary_path_for_shadow(path).map_err(|e| {
+                            color_eyre::eyre::eyre!(
+                                "Agent '{}': failed to resolve daemon binary path '{}': {}",
+                                agent_id,
+                                path,
+                                e
+                            )
+                        })?
+                    }
+                    _ => monerod_path.to_string(),
                 }
-                _ => monerod_path.to_string(),
             };
 
             // Merge custom environment from config with base environment

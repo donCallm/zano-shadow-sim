@@ -28,8 +28,15 @@ use std::collections::BTreeMap;
 /// handed to a [`NodeImplementation`] to render. Borrows its inputs; lives only
 /// for the duration of a render call.
 pub struct NodeLaunchSpec<'a> {
-    /// The node's data directory (already resolved, e.g. `<root>/monero-<id>`).
+    /// The node's runtime data directory (already resolved, e.g.
+    /// `<root>/monero-<id>`). Wiped and recreated per run.
     pub data_dir: String,
+    /// A STABLE per-agent directory for materialized config files (e.g.
+    /// `<root>/cuprate-<id>`) — outside the wiped `monero-*` data dirs, so a
+    /// generated config written here at generation time survives the pre-sim
+    /// cleanup. Used by implementations that need a config file (cuprate);
+    /// ignored by monerod.
+    pub config_dir: String,
     /// The agent's own IP address (RPC/P2P bind address).
     pub agent_ip: &'a str,
     /// RPC bind port.
@@ -283,9 +290,11 @@ cache_directory = "{data}/cache"
         );
 
         RenderedLaunch {
+            // --config-file points at the STABLE config_dir (survives cleanup);
+            // the config's fs.* data dirs point at the runtime data_dir.
             args: vec![
                 "--config-file".to_string(),
-                format!("{}/Cuprated.toml", spec.data_dir),
+                format!("{}/Cuprated.toml", spec.config_dir),
                 "--skip-config-warning".to_string(),
             ],
             config_files: vec![ConfigFile {
@@ -358,6 +367,7 @@ mod tests {
     ) -> NodeLaunchSpec<'a> {
         NodeLaunchSpec {
             data_dir: data_dir.to_string(),
+            config_dir: "/cfg/cuprate-relay-001".to_string(),
             agent_ip: ip,
             rpc_port: 18081,
             p2p_port: 18080,
@@ -380,7 +390,7 @@ mod tests {
             r.args,
             vec![
                 "--config-file".to_string(),
-                "/data/monero-relay-001/Cuprated.toml".to_string(),
+                "/cfg/cuprate-relay-001/Cuprated.toml".to_string(),
                 "--skip-config-warning".to_string(),
             ]
         );

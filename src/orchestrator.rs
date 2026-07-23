@@ -872,6 +872,8 @@ pub fn generate_agent_shadow_config(
         reachable_fraction: config.general.reachable_fraction,
         reachable_by_role: config.general.reachable_by_role.as_ref(),
         hidden_fraction: config.general.hidden_fraction,
+        node_implementations: &config.general.node_implementations,
+        experimental_cuprate_boot: config.general.experimental_cuprate_boot,
         simulation_stop_secs: parse_duration_to_seconds(&config.general.stop_time).map_err(
             |e| {
                 color_eyre::eyre::eyre!(

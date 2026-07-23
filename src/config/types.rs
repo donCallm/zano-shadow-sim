@@ -372,6 +372,25 @@ pub struct GeneralConfig {
     /// `--turnover-session`. See docs/20260618_mainnet_topology_targets.md.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turnover: Option<TurnoverConfig>,
+
+    /// Node-implementation selection. Maps an implementation id (e.g.
+    /// `"cuprated"`) to the FRACTION of eligible relay-class nodes that should
+    /// run it; the remainder run monerod (the implicit default). Generalizes to
+    /// a third node type by adding another entry. Fractions are of the total
+    /// eligible pool and should sum to <= 1.0. Default empty = every node runs
+    /// monerod (generated output unchanged). Assignment is deterministic from
+    /// `simulation_seed`. cuprate nodes are relay-class (no wallet/mining) and
+    /// are gated until the P3b seed override — see `experimental_cuprate_boot`.
+    /// Design: docs/20260723_multi_node_type_architecture.md.
+    #[serde(default)]
+    pub node_implementations: BTreeMap<String, f64>,
+
+    /// Opt into placing cuprate nodes before their seed override lands (P3b):
+    /// they boot under Shadow but find no peers (FakeChain ships no configurable
+    /// seeds yet), so this is for boot-testing only. Default false = selecting
+    /// cuprate is rejected at generation time with a clear error.
+    #[serde(default)]
+    pub experimental_cuprate_boot: bool,
 }
 
 /// Default reachable fraction: 1.0 = all nodes reachable (perfect network).
@@ -532,6 +551,8 @@ impl Default for GeneralConfig {
             reachable_by_role: None,
             hidden_fraction: default_hidden_fraction(),
             turnover: None,
+            node_implementations: BTreeMap::new(),
+            experimental_cuprate_boot: false,
         }
     }
 }
