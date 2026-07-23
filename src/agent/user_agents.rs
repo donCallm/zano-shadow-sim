@@ -19,7 +19,7 @@ use crate::topology::{
 };
 use crate::utils::binary::resolve_binary_path_for_shadow;
 use crate::utils::duration::parse_duration_to_seconds;
-use crate::utils::options::{merge_options, options_to_args, translate_daemon_log_level};
+use crate::utils::options::{merge_options, translate_daemon_log_level};
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
@@ -619,73 +619,27 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                 .or_insert(OptionValue::Bool(true));
         }
 
-        let build_daemon_args_base = |phase_args: Option<&Vec<String>>| -> Vec<String> {
-            // Start with required/injected flags that cannot be overridden.
-            //
-            // --log-file: vanilla monerod's default is ~/.bitmonero/bitmonero.log
-            // (per `monerod --help`), NOT <data-dir>/bitmonero.log. The
-            // shadowformonero patches we used to apply pinned it to data-dir,
-            // but those were dropped in 641bc5a6 (Apr 21 2026). Without an
-            // explicit --log-file, monerod silently writes nothing — the
-            // monitor's daemon-log discovery and run_sim.sh's archive step
-            // both glob /tmp/monero-*/bitmonero.log and turn up empty,
-            // leaving the post-run summary reporting "0 nodes / 0 blocks"
-            // even on a healthy sim.
-            let data_dir = format!("{}/monero-{}", daemon_data_dir, agent_id);
-            let mut args = vec![
-                format!("--data-dir={}", data_dir),
-                format!("--log-file={}/bitmonero.log", data_dir),
-                "--regtest".to_string(),
-                "--keep-fakechain".to_string(),
-            ];
-
-            // Add process_threads flags if set and not overridden in daemon_defaults
-            if process_threads > 0 {
-                if !merged_daemon_options.contains_key("prep-blocks-threads") {
-                    args.push(format!("--prep-blocks-threads={}", process_threads));
-                }
-                if !merged_daemon_options.contains_key("max-concurrency") {
-                    args.push(format!("--max-concurrency={}", process_threads));
-                }
-            }
-
-            // Add configurable options from merged daemon_defaults + daemon_options
-            args.extend(options_to_args(&merged_daemon_options));
-
-            // Add required network binding flags (always injected, use agent-specific values)
-            args.extend(vec![
-                format!("--rpc-bind-ip={}", agent_ip),
-                format!("--rpc-bind-port={}", daemon_rpc_port),
-                "--confirm-external-bind".to_string(),
-                "--rpc-access-control-origins=*".to_string(),
-                format!("--p2p-bind-ip={}", agent_ip),
-                format!("--p2p-bind-port={}", p2p_port),
-            ]);
-
-            // Add DNS and seed node settings
-            if !enable_dns_server {
-                args.push("--disable-dns-checkpoints".to_string());
-            }
-            if is_miner && !enable_dns_server {
-                args.push("--disable-seed-nodes".to_string());
-            }
-
-            // Add initial fixed connections
+        // Peer/connection args (pre-formatted monerod flag strings), computed
+        // once. Lifted verbatim from the former build_daemon_args_base closure so
+        // MonerodImpl::render can append them after the DNS flags in the exact
+        // historical order (the tests/golden/* snapshots enforce byte-identity).
+        let peer_args: Vec<String> = {
+            let mut pa: Vec<String> = Vec::new();
+            // Initial fixed connections for miners / seeds.
             if is_miner {
                 if let Some(conns) = miner_connections.get(*agent_id) {
                     for conn in conns {
-                        args.push(conn.clone());
+                        pa.push(conn.clone());
                     }
                 }
             } else if is_seed_node || seed_nodes.iter().any(|e| e.is_seed_node && e.index == i) {
                 if let Some(conns) = seed_connections.get(*agent_id) {
                     for conn in conns {
-                        args.push(conn.clone());
+                        pa.push(conn.clone());
                     }
                 }
             }
-
-            // Add peer connections for regular agents
+            // Peer connections for regular agents.
             let is_actual_seed_node = seed_nodes.iter().any(|e| e.index == i);
             if !is_miner && !is_actual_seed_node {
                 for seed_node in seed_agents.iter() {
@@ -695,7 +649,7 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                         } else {
                             format!("--add-priority-node={}", seed_node)
                         };
-                        args.push(peer_arg);
+                        pa.push(peer_arg);
                     }
                 }
                 if matches!(peer_mode, PeerMode::Hybrid) {
@@ -703,20 +657,33 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                         let topology_connections =
                             generate_topology_connections(topo, i, &all_agent_ips, &agent_ip);
                         for conn in topology_connections {
-                            args.push(conn);
+                            pa.push(conn);
                         }
                     }
                 }
             }
+            pa
+        };
 
-            // Add phase-specific args
-            if let Some(custom_args) = phase_args {
-                for arg in custom_args {
-                    args.push(arg.clone());
-                }
-            }
-
-            args
+        // Node implementation for this agent. P1: always monerod — the
+        // `node_implementations` selection lands in a follow-up (empty => monerod,
+        // keeping output byte-identical). The spec is implementation-independent;
+        // the impl renders it into concrete args (+ any config files).
+        let node_implementation = crate::agent::node_impl::MonerodImpl;
+        let launch_spec = crate::agent::node_impl::NodeLaunchSpec {
+            data_dir: format!("{}/monero-{}", daemon_data_dir, agent_id),
+            agent_ip: agent_ip.as_str(),
+            rpc_port: daemon_rpc_port,
+            p2p_port,
+            process_threads,
+            enable_dns_server,
+            is_miner,
+            daemon_options: &merged_daemon_options,
+            peer_args: peer_args.as_slice(),
+        };
+        let build_daemon_args_base = |phase_args: Option<&Vec<String>>| -> Vec<String> {
+            use crate::agent::node_impl::NodeImplementation;
+            node_implementation.render(&launch_spec, phase_args).args
         };
 
         // Add Monero daemon process(es) - either simple or phase-based
