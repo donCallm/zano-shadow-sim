@@ -33,10 +33,11 @@ TS_RE = re.compile(r"(\d{2}):(\d{2}):(\d{2})\.(\d+)")
 MONEROD_BLOCK_RE = re.compile(r"Received NOTIFY_NEW_FLUFFY_BLOCK <(" + _HASH + ")>")
 MONEROD_TX_RE = re.compile(r"Including transaction <(" + _HASH + ")>")
 CUPRATE_BLOCK_RE = re.compile(r'Successfully added block hash="(' + _HASH + ')"')
-# Cuprate tx-log format isn't finalized yet, so match defensively: any line
-# that looks like it's handing a tx to the pool/handler, with a tx=<hash>
-# field anywhere on the line.
-CUPRATE_TX_RE = re.compile(r"tx=(" + _HASH + ")")
+# Cuprate logs tx receipt as `... passing tx to tx-pool manager tx="<hash>"`
+# (and `handle_incoming_tx{tx_id="<hash>"}`); the hash is QUOTED. Gated by the
+# phrase check in iter_events, so match either quoted field. (Validated against
+# real cuprate tx data 2026-07-24.)
+CUPRATE_TX_RE = re.compile(r'tx(?:_id)?="(' + _HASH + ')"')
 
 
 def parse_ts(line: str):
