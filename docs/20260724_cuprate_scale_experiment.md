@@ -180,19 +180,28 @@ Each propagation hop is ~5-6× faster in cuprate, and over the multi-hop path to
 on-idle relay loop; cuprate `binaries/cuprated/src/txpool/dandelion.rs` +
 `p2p/dandelion-tower/`.)
 
-A **larger delta is hidden** from the §5 measurement: monerod's **39s average
-embargo** (the stem-phase timer) dwarfs cuprate's **~1.46s** expected stem, but that
-delay happens *before* first broadcast — the point the parser begins measuring. So
-the end-to-end (tx-creation → network-wide) time is likely several× faster in
-cuprate; the 2× in §5 is the conservative broadcast-phase slice. Measuring the
-end-to-end stem delay directly is a follow-up.
+**End-to-end check (measured).** Joining each transaction's creation time
+(`transaction_registry/transactions.json`) to its first network appearance confirms
+that §5's latency *is* the full origin→network time: the originating node logs a tx
+only **~0.14s median** after creation in *both* runs, so §5's spread already captures
+the entire stem+fluff propagation. And monerod's **39s embargo does not materially
+factor** — it is a rare safety ceiling a well-connected regtest network never hits
+(max tx latency ~12s baseline / ~19s cuprate, far below 39s). So the ~2× is the real,
+full end-to-end difference, driven by the per-hop relay cadence (monerod's 1s poll vs
+cuprate's 175ms), *not* the embargo. (Earlier drafts speculated a large hidden
+embargo delta; the measurement falsifies that.)
 
-**Privacy dimension.** Dandelion++'s embargo and stem length exist specifically to
-obscure a transaction's origin. Cuprate's shorter, faster stem propagates
-transactions sooner but provides *less* origin obfuscation — a speed/privacy
-trade-off. And the timing signatures themselves (1s cadence vs 175ms hops) are a
-candidate for **fingerprinting** cuprate vs monerod nodes, with anonymity-set
-implications. Both are open investigations (see follow-ups).
+**Privacy dimension (nuanced — a trade-off, not a simple downgrade).** Dandelion++
+obscures a tx's origin two ways: *graph* decorrelation (relay through N private stem
+hops before broadcasting, so the broadcast point is N hops from the source) and
+*time* decorrelation (delay before broadcast). Cuprate's lower fluff probability
+(12% vs 20%) means *more* stem hops (~8 vs ~5) → arguably **stronger** graph
+decorrelation; but its faster hops (175ms vs ~1s) make the stem ~3× shorter in time →
+**weaker** against a timing-correlation adversary. So cuprate is not simply "less
+private" at the network layer — it trades time-obfuscation for graph-obfuscation, and
+the net effect is threat-model-dependent. Separately, the distinct relay *timing
+signature* is a behavioral fingerprint. Both are treated in the privacy/fingerprinting
+follow-up.
 
 ## Caveats & limitations
 
