@@ -1386,7 +1386,7 @@ cleanup_tmp_monero() {
 }
 
 archive_daemon_logs() {
-    log_info "Archiving daemon logs (bitmonero.log)..."
+    log_info "Archiving daemon logs (monerod bitmonero.log + cuprate file logs)..."
 
     local logs_dir="$ARCHIVE_DIR/daemon_logs"
     mkdir -p "$logs_dir"
@@ -1406,12 +1406,26 @@ archive_daemon_logs() {
         count=$((count + 1))
     done
 
-    if [[ $count -gt 0 ]]; then
+    # cuprate nodes don't write bitmonero.log; their tracing file sink lands in
+    # <data_dir>/<network>/logs/ (see CupratedImpl [tracing.file]). Collect those
+    # into the same per-node daemon_logs/ dir so every node type is first-class.
+    local cup_count=0
+    for cup_log in "$DAEMON_DATA_BASE"/monero-*/*/logs/*; do
+        [[ -f "$cup_log" ]] || continue
+        local cup_node_dir cup_node_name
+        cup_node_dir=$(dirname "$(dirname "$(dirname "$cup_log")")")
+        cup_node_name=$(basename "$cup_node_dir")
+        mkdir -p "$logs_dir/$cup_node_name"
+        mv "$cup_log" "$logs_dir/$cup_node_name/"
+        cup_count=$((cup_count + 1))
+    done
+
+    if [[ $((count + cup_count)) -gt 0 ]]; then
         local total_size
         total_size=$(du -sh "$logs_dir" 2>/dev/null | cut -f1)
-        log_ok "Daemon logs: $count bitmonero.log files archived ($total_size total)"
+        log_ok "Daemon logs: $count monerod (bitmonero.log) + $cup_count cuprate log file(s) archived ($total_size total)"
     else
-        log_warn "No bitmonero.log files found in $DAEMON_DATA_BASE/monero-*/"
+        log_warn "No daemon logs found in $DAEMON_DATA_BASE/monero-*/"
     fi
     # NOTE: the daemon data dirs themselves (blockchain DBs, config, lock
     # files — tens of GB on a 1000-node sim) are cleaned by the

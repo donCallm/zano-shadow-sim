@@ -275,6 +275,14 @@ fast_sync = false
 [tracing.stdout]
 level = "info"
 
+# Full-fidelity log to a file under the node data dir (<data>/<network>/logs/),
+# for cross-impl network analysis. cuprate logs block events at INFO but
+# TX-relay, P2P connection, and handshake events only at DEBUG, so the FILE sink
+# is DEBUG (stdout stays lean at INFO). Rotates daily; an 8h sim stays in one file.
+[tracing.file]
+level = "debug"
+max_log_files = 7
+
 [tokio]
 threads = {threads}
 
@@ -435,6 +443,9 @@ mod tests {
         assert!(toml.contains("port = 18081"));
         assert!(toml.contains("listen_on = \"11.0.0.5\""));
         assert!(toml.contains("fast_data_directory = \"/data/monero-relay-001\""));
+        // Debug file sink for cross-impl analysis (tx/connection events are DEBUG).
+        assert!(toml.contains("[tracing.file]"));
+        assert!(toml.contains("level = \"debug\""));
     }
 
     #[test]
