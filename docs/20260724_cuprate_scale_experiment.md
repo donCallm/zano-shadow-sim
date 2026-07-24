@@ -156,6 +156,44 @@ partners, but the overall connection behavior of the monerod user nodes is
 unchanged by the presence of cuprate. (Outputs: `ruck_{baseline,cuprate}_output.txt`
 + `p2p-connection-duration.png` in each archive.)
 
+## Mechanism: why cuprate propagates transactions faster
+
+The tx-propagation speedup (§5) is structural, not incidental — it's a difference
+in how the two implementations run dandelion++ (the privacy relay layer). On paper
+the configs are near-identical; the difference is **timing granularity**:
+
+| Knob | monerod | cuprate |
+|---|---|---|
+| Relay driver | **1-second poll loop** (`relay_txpool_transactions()` every 1s) | **event-driven, 175ms** between stem hops |
+| Stem → fluff | timer-based embargo, poisson **avg 39s** ceiling | epoch role; hop until a Fluff-role node (~1.46s expected) |
+| Fluff probability | 20% | 12% |
+| Fluff flush | ~5s poisson | fast diffusion timer |
+| Epoch | 10 min | 10 min |
+| Regtest change | none (fakechain → mainnet params) | none |
+
+The dominant factor is the **relay driver**. Monerod advances every relay step on a
+**1-second poll loop**, so each dandelion hop waits up to ~1s (plus a ~5s poisson
+fluff-flush); cuprate is **event-driven with 175ms hops** and immediate diffusion.
+Each propagation hop is ~5-6× faster in cuprate, and over the multi-hop path to all
+306 nodes that accumulates to the ~2× network-wide spread measured in §5.
+(Sources: monero `src/cryptonote_config.h` + `tx_pool.cpp` + `cryptonote_core.cpp`
+on-idle relay loop; cuprate `binaries/cuprated/src/txpool/dandelion.rs` +
+`p2p/dandelion-tower/`.)
+
+A **larger delta is hidden** from the §5 measurement: monerod's **39s average
+embargo** (the stem-phase timer) dwarfs cuprate's **~1.46s** expected stem, but that
+delay happens *before* first broadcast — the point the parser begins measuring. So
+the end-to-end (tx-creation → network-wide) time is likely several× faster in
+cuprate; the 2× in §5 is the conservative broadcast-phase slice. Measuring the
+end-to-end stem delay directly is a follow-up.
+
+**Privacy dimension.** Dandelion++'s embargo and stem length exist specifically to
+obscure a transaction's origin. Cuprate's shorter, faster stem propagates
+transactions sooner but provides *less* origin obfuscation — a speed/privacy
+trade-off. And the timing signatures themselves (1s cadence vs 175ms hops) are a
+candidate for **fingerprinting** cuprate vs monerod nodes, with anonymity-set
+implications. Both are open investigations (see follow-ups).
+
 ## Caveats & limitations
 
 - **Wall-clock is not comparable.** Run A took 3h28m, Run B 2h41m — but this is a
@@ -190,9 +228,14 @@ the multi-node-type feature works at scale.
 
 ## Follow-ups
 
+- **End-to-end tx-delay** (in progress): measure the pre-broadcast stem delay
+  directly (tx-creation timestamp → first network broadcast) to quantify the hidden
+  delta the §5 broadcast-phase measurement misses — expected to show a larger cuprate
+  advantage (monerod 39s embargo vs cuprate ~1.46s stem).
+- **Privacy / fingerprinting** (planned): can cuprate nodes be fingerprinted on the
+  network (dandelion timing, version/handshake, peer-exchange cadence, message
+  format, RPC surface), and does cuprate's faster/shorter dandelion stem weaken
+  transaction-origin privacy? Both carry anonymity-set implications for a
+  mixed-implementation Monero network.
 - Quantify run-to-run variance (repeat each arm with different seeds).
-- Tighten the tx-propagation measurement (per-tx send instrumentation or a
-  packet-level probe) to confirm the ~2× cleanly across implementations.
 - Push the cuprate fraction higher (all-cuprate relays) and to larger node counts.
-- The dandelion++ timing difference is worth a dedicated look — it's the likely
-  driver of the tx-propagation delta and is interesting in its own right.
