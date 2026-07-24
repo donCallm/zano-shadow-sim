@@ -93,12 +93,13 @@ fn is_pinned_reachable(cfg: &AgentConfig) -> bool {
         .map_or(false, |v| matches!(v, OptionValue::Bool(false)))
 }
 
-/// Assign a node implementation to eligible RELAY-class agents by seeded hash.
+/// Assign a node implementation to eligible daemon agents by seeded hash.
 ///
-/// Eligible = non-seed, non-miner, wallet-less, phase-less daemon nodes — the
-/// candidates for an alternate implementation (cuprate is relay-class: no
-/// wallet, no mining). Miners and wallet/user nodes always stay monerod, so a
-/// capability mismatch can't arise. `fractions` maps impl_id -> fraction of the
+/// Eligible = non-seed, non-miner, phase-less daemon nodes. Wallet-bearing user
+/// nodes ARE eligible: cuprate backing a real monero-wallet-rpc (sync + send) is
+/// runtime-proven — see docs/20260724_cuprate_wallet_rpc.md. MINERS still stay
+/// monerod (cuprate's GenerateBlocks is a stub), so a capability mismatch can't
+/// arise. `fractions` maps impl_id -> fraction of the
 /// eligible pool; entries are applied in id order over a seeded-hash ordering of
 /// the pool, partitioning it into disjoint sets (fractions are of the TOTAL
 /// eligible pool; sum <= 1.0 expected, over-assignment is clamped to what's
@@ -120,9 +121,6 @@ fn compute_node_impl_set(
     for (id, cfg) in user_agents {
         if cfg.is_miner() {
             continue; // mines via generateblocks — monerod only
-        }
-        if cfg.has_wallet() {
-            continue; // wallet/user node — monerod only (cuprate has no wallet)
         }
         if cfg.has_daemon_phases() {
             continue; // upgrade-phase node — monerod only

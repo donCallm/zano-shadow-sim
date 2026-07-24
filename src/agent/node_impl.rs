@@ -230,7 +230,11 @@ impl NodeImplementation for CupratedImpl {
     fn capabilities(&self) -> NodeCaps {
         NodeCaps {
             can_mine: false,          // GenerateBlocks RPC is a stub (P3c)
-            can_wallet: false,        // cuprate has no wallet
+            // Runtime-proven 2026-07-24: a real monero-wallet-rpc synced AND sent
+            // through cuprated's RPC (getblocks.bin / get_outs.bin /
+            // get_output_distribution.bin / sendrawtransaction, all HTTP 200).
+            // See docs/20260724_cuprate_wallet_rpc.md.
+            can_wallet: true,
             supports_regtest: true,   // FakeChain, runtime-verified vs monerod regtest
             peer_pinning: false,      // seed_nodes override gives bootstrap seeds, not persistent peer pins
         }
@@ -239,10 +243,11 @@ impl NodeImplementation for CupratedImpl {
     fn preflight(&self, _spec: &NodeLaunchSpec) -> Result<(), String> {
         Err("cuprated participation is runtime-proven (boots FakeChain, handshakes \
              with monerod, discovers the wider peer mesh from monerod's peerlists, \
-             and syncs monerod-mined blocks — all via the seed_nodes override) but \
-             remains EXPERIMENTAL: it cannot mine (GenerateBlocks RPC is a stub) or \
-             run a wallet. Placement is gated until these mature; opt into \
-             experimental cuprate boot-testing to place cuprated nodes anyway."
+             syncs monerod-mined blocks, and backs a real monero-wallet-rpc through \
+             its own RPC — sync and send both verified) but remains EXPERIMENTAL: \
+             it cannot MINE (GenerateBlocks RPC is a stub), so miners stay monerod. \
+             Placement is gated until mining matures; opt into experimental cuprate \
+             boot-testing to place cuprated nodes anyway."
             .to_string())
     }
 
@@ -456,7 +461,10 @@ mod tests {
         assert!(CupratedImpl.preflight(&s).is_err());
         assert!(MonerodImpl.preflight(&s).is_ok());
         let caps = CupratedImpl.capabilities();
-        assert!(!caps.can_mine && !caps.can_wallet && !caps.peer_pinning);
+        // Mining is the one remaining hard gate (GenerateBlocks is a stub);
+        // wallet backing is runtime-proven, so can_wallet is true.
+        assert!(!caps.can_mine && !caps.peer_pinning);
+        assert!(caps.can_wallet);
         assert!(caps.supports_regtest);
     }
 
