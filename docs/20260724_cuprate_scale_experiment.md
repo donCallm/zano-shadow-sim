@@ -158,6 +158,15 @@ unchanged by the presence of cuprate. (Outputs: `ruck_{baseline,cuprate}_output.
 
 ## Mechanism: why cuprate propagates transactions faster
 
+> **UPDATE 2026-07-25 — this section identifies relay *cadence* as the mechanism, but
+> cadence is not the only contributor.** A follow-up connection analysis
+> (`docs/20260725_cuprate_connection_matrix.md`) found cuprate nodes hold **~2.4× more
+> concurrent peers** than monerod (61.5 vs 26.1), because cuprate defaults to 32 outbound
+> connections against monerod's 12. Higher fan-out means fewer hops to cover the network,
+> which is an independent second mechanism for the speedup. **The two have not been
+> separated** — that needs a run with cuprate's `outbound_connections` pinned to 12. Read
+> the speedup below as attributable to *cadence and fan-out together*, not cadence alone.
+
 The tx-propagation speedup (§5) is structural, not incidental — it's a difference
 in how the two implementations run dandelion++ (the privacy relay layer). On paper
 the configs are near-identical; the difference is **timing granularity**:
