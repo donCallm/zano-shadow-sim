@@ -1,9 +1,10 @@
 # Cuprate at scale: a monerod vs monerod+cuprate network experiment
 
 **Date:** 2026-07-24 (follow-up findings folded in 2026-07-26)
-**Status:** Results — complete. §7 (connection characteristics) and §8 (wallet RPC) were
-added by follow-up work after the original write-up; both revise conclusions below, so read
-them before citing §5's mechanism or the "relay-class only" framing.
+**Status:** Results — complete. §7 (connection characteristics), §8 (wallet RPC) and §9
+(cadence vs fan-out) were added by follow-up work after the original write-up; they revise
+conclusions below, so read them before citing §5's mechanism or the "relay-class only"
+framing. §9 resolves the mechanism question §7 opened.
 **Companions:** design/architecture in `docs/20260723_multi_node_type_architecture.md`;
 full detail for the follow-ups in `docs/20260725_cuprate_connection_matrix.md` and
 `docs/20260724_cuprate_wallet_rpc.md`.
@@ -32,9 +33,13 @@ transactions **noticeably faster**:
 - **Wallets (§8):** cuprate **can** back a real `monero-wallet-rpc` — sync *and* send,
   proven separately. Mining is the only remaining gate.
 
+- **Cadence vs fan-out (§9):** the two mechanisms are now **separated** — pinning cuprate's
+  outbound to monerod's 12 leaves it still **~1.78× faster** (vs 2.19× unpinned), so relay
+  **cadence accounts for ~80%** of the speedup and fan-out ~20%.
+
 **Conclusion: `cuprated` is a viable drop-in relay at 300-node scale, and a
-faster transaction relay than monerod in this environment.** The speedup comes from
-**both** relay cadence and higher fan-out; §7 shows these are not yet separated.
+faster transaction relay than monerod in this environment** — and it stays faster even when
+given monerod's connection budget.
 
 ## Question
 
@@ -266,16 +271,77 @@ harmless, but it is a trivially observable **remote fingerprint** distinguishing
 implementations by RPC port alone — the first *measured* fingerprinting signal, where the
 privacy discussion below reasons from mechanism.
 
+### 9. Separating cadence from fan-out — cadence dominates (~80/20)
+
+*Added 2026-07-26. This resolves the open question raised by §7.*
+
+§5 attributed the tx speedup to relay **cadence**; §7 showed cuprate also has ~2.4× the
+**fan-out**, an independent candidate mechanism. To separate them, cuprate's outbound target
+was pinned to monerod's 12 via the `out-peers` daemon option (which
+[`CupratedImpl`] renders as `outbound_connections = 12` plus
+`extra_outbound_connections = 0`, since monerod has no load-triggered overshoot).
+
+Two fresh arms, **identical except that one line** — same seed, same agents, both
+180 cuprate / 126 monerod:
+
+**Manipulation check — the pin worked, and it is large:**
+
+| arm | cuprate peers/node | monerod peers/node | cuprate:monerod |
+|---|---|---|---|
+| cuprate-32 (unpinned) | **60.2** | 28.9 | 2.08× |
+| cuprate-12 (pinned) | **26.4** | 22.9 | **1.15×** |
+
+Cuprate's degree fell 60.2 → 26.4 (−56%), to near-parity with monerod.
+
+**Result — most of the speedup survives degree matching:**
+
+| arm | tx latency, monerod-only median | vs baseline |
+|---|---|---|
+| baseline (306 monerod) | 4.953s | — |
+| cuprate-32 (degree 60.2) | 2.260s | **2.19× faster** |
+| cuprate-12 (degree 26.4) | 2.786s | **1.78× faster** |
+
+Decomposing the 2.693s total improvement (baseline → unpinned):
+
+- **fan-out** accounts for 2.786 − 2.260 = **0.526s (~20%)**
+- **cadence** accounts for 4.953 − 2.786 = **2.167s (~80%)**
+
+**So relay cadence is the dominant mechanism, and §5's original attribution was
+substantially right.** Fan-out is a real but secondary contributor: cutting cuprate's
+outbound degree by 56% cost only ~23% of its latency advantage. A cuprate network with
+monerod's connection budget is still ~1.8× faster at propagating transactions.
+
+Block propagation stayed flat throughout (monerod-only median 0.136s baseline / 0.111s
+unpinned / 0.120s pinned) — blocks are fast in every arm, so this is a transaction-relay
+effect, as §4 and §5 indicated.
+
+**Caveats specific to this decomposition:**
+
+- **Not a perfectly isolated variable.** Cutting cuprate's *outbound* also cuts monerod's
+  *inbound*, because inbound degree is just other nodes dialling you — monerod fell 28.9 →
+  22.9 peers as a side effect. The cuprate:monerod degree ratio went 2.08× → 1.15×, not to
+  exactly 1.0, so a small fan-out advantage remains in the pinned arm. If anything this makes
+  the ~80% cadence share a slight *under*-estimate of cadence's role.
+- The 80/20 split assumes the two effects combine additively; it is a first-order
+  decomposition, not a fitted model.
+- Single seed, single window per arm.
+- These arms carry 180 cuprate nodes (not §Experimental-design's 149) because the eligibility
+  fix in `b0d6a064` enlarged the pool — see §8. The unpinned arm's 2.19× is consistent with
+  the original 149-cuprate arm's ~2.14×, which is a useful cross-check that the reassignment
+  did not distort the effect.
+- §7's mixing residual grew in the pinned arm (monerod↔cuprate +12.3pp above the
+  degree-corrected null, vs +4.0pp unpinned, with cuprate↔cuprate −6.6pp). Worth noting but
+  not over-interpreting from one window; the no-clustering conclusion in §7 stands for the
+  default configuration.
+
 ## Mechanism: why cuprate propagates transactions faster
 
-> **UPDATE 2026-07-25 — this section identifies relay *cadence* as the mechanism, but
-> cadence is not the only contributor.** A follow-up connection analysis
-> (`docs/20260725_cuprate_connection_matrix.md`) found cuprate nodes hold **~2.4× more
-> concurrent peers** than monerod (61.5 vs 26.1), because cuprate defaults to 32 outbound
-> connections against monerod's 12. Higher fan-out means fewer hops to cover the network,
-> which is an independent second mechanism for the speedup. **The two have not been
-> separated** — that needs a run with cuprate's `outbound_connections` pinned to 12. Read
-> the speedup below as attributable to *cadence and fan-out together*, not cadence alone.
+> **UPDATE 2026-07-26 — RESOLVED, see §9.** This section attributes the speedup to relay
+> *cadence*. §7 showed fan-out (cuprate's ~2.4× concurrent peers) as a rival explanation, and
+> §9 separated them with a degree-pinned arm: **cadence accounts for ~80% of the improvement,
+> fan-out ~20%.** With cuprate's outbound pinned to monerod's 12, transactions still propagate
+> **~1.78× faster** (vs 2.19× unpinned). The cadence account below is therefore substantially
+> correct, but it is not the whole story.
 
 The tx-propagation speedup (§5) is structural, not incidental — it's a difference
 in how the two implementations run dandelion++ (the privacy relay layer). On paper
@@ -338,11 +404,10 @@ follow-up.
   failure — and **no claim in this document depends on those counts**. Unfixed; a proper
   fix needs a cuprate log-format parser, since the monitor parses monerod's format for
   height and connections.
-- **Cadence and fan-out are not separated.** §5's ~2× speedup has two candidate
-  mechanisms — relay cadence (1s poll vs 175ms event-driven) and fan-out (§7's 2.4× peers,
-  meaning fewer hops to cover the network). Both plausibly contribute and this experiment
-  cannot apportion them. Isolating cadence requires a run with cuprate's
-  `outbound_connections` pinned to 12.
+- ~~**Cadence and fan-out are not separated.**~~ **RESOLVED in §9**: a degree-pinned arm
+  apportions the speedup ~80% cadence / ~20% fan-out. The residual caveat is that pinning
+  cuprate's outbound also lowers monerod's inbound, so degree parity is approximate
+  (1.15× rather than 1.0×) — see §9's caveats.
 - **§7 is one window, one seed.** The degree gap is large and mechanically explained by
   config defaults, so it is robust; the ±1–3pp mixing residuals are not resolvable at that
   precision. §7's metric is also activity-based (traffic within the window), so a connection
@@ -361,14 +426,13 @@ identical block production, zero failures, 100% propagation reach — and is
 Cuprate is a viable drop-in relay, and this experiment is the runtime evidence that
 the multi-node-type feature works at scale.
 
-The follow-up work sharpens two things. The speedup is driven by **relay cadence and
-higher fan-out together**, not cadence alone (§7) — cuprate is simply a
-better-connected participant by default (32 vs 12 outbound), and the two mechanisms
-remain unseparated. And cuprate mixes into the network **without clustering by
-implementation** while leaving monerod's own connectivity untouched, which is the
-topology-level counterpart to the functional equivalence above. Cuprate is also less
-limited than assumed: it can back a real wallet (§8), leaving **mining as the sole
-remaining gate**.
+The follow-up work sharpens three things. The speedup is driven **mostly by relay cadence
+(~80%), with fan-out contributing ~20%** — established by pinning cuprate's outbound to
+monerod's 12, after which it is still ~1.78× faster (§9). Cuprate mixes into the network
+**without clustering by implementation** while leaving monerod's own connectivity untouched
+(§7), the topology-level counterpart to the functional equivalence above. And cuprate is less
+limited than assumed: it can back a real wallet (§8), leaving **mining as the sole remaining
+gate**.
 
 ## Reproducibility
 
@@ -379,6 +443,10 @@ remaining gate**.
 - §8 archives: `archived_runs/20260724_212401_cuprate_wallet_rpc` (remote light wallet),
   `archived_runs/20260724_224301_cuprate_local_wallet` (co-located wallet);
   configs `test_configs/cuprate_{wallet_rpc,local_wallet}.yaml`
+- §9 archives: `archived_runs/20260726_150824_cuprate_exp_cuprate32_reassigned` (unpinned
+  reference, 2h26m), `archived_runs/20260726_173445_cuprate_exp_cuprate_out12` (pinned,
+  2h14m); config `test_configs/cuprate_exp_cuprate_out12_300_8h.yaml` — byte-identical to
+  the cuprate arm's config apart from `daemon_defaults.out-peers: 12`
 - Commits: `72cd80e0` (debug file-logging + collection + parser + configs), `5fe400b5`
   (cuprate tx-regex fix), `b0d6a064` (§8 wallet support + gate retired), `a2b3b8c2`
   (§7 connection matrix)
@@ -397,10 +465,12 @@ remaining gate**.
   Mechanism section plus §7 (observability/degree) and §8 (TLS-probe RPC fingerprint, the
   first *measured* signal). The in-sim **adversary experiments** (fingerprint classifier,
   first-spy / timing origin-tracing) remain deliberately deferred.
-- **★ Separate cadence from fan-out** (highest value): repeat the cuprate arm with
-  `outbound_connections` pinned to 12 so cuprate matches monerod's degree. If the ~2×
-  speedup survives, cadence is the driver; if it collapses toward parity, fan-out is. This
-  is the one open question that changes how §5's headline should be stated.
+- ~~**Separate cadence from fan-out**~~ **DONE — see §9.** The speedup survived degree
+  pinning (~1.78× vs 2.19×), so cadence drives ~80% of it. Remaining refinement: monerod's
+  inbound degree also drops when cuprate's outbound is pinned, so a truly degree-matched pair
+  would need monerod's `in-peers` capped in step.
+- **Sweep the cuprate fraction** (0 / 25 / 50 / 75 / 100%) now that the mechanism is
+  understood, to see whether the speedup is linear in cuprate share or has a threshold.
 - **Fix monitor blindness to cuprate nodes** so `summary.txt` stops undercounting on mixed
   runs (needs a cuprate log-format parser — see Caveats).
 - Quantify run-to-run variance (repeat each arm with different seeds).

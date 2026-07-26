@@ -121,14 +121,16 @@ seeds are monerod miners, which if anything biases its early connections toward 
 1. **Cuprate is a better-connected participant by default.** 32 outbound vs 12 is a
    deliberate design choice, and at 300 nodes it yields ~2.4× the concurrent peers.
 
-2. **This plausibly contributes to the ~2× faster transaction propagation** measured in
-   `docs/20260724_cuprate_scale_experiment.md`. That document attributed the speedup to relay
-   cadence (monerod's 1s poll vs cuprate's 175ms event-driven stem). Higher fan-out is a
-   second, independent mechanism: more peers per hop means fewer hops to cover the network.
-   **These two contributions have not been separated** — doing so needs a run with cuprate's
-   `outbound_connections` pinned to 12 to isolate cadence from degree. Until then, the
-   scale-experiment's mechanism claim should be read as *cadence and fan-out together*, not
-   cadence alone.
+2. **This contributes to the ~2× faster transaction propagation** measured in
+   `docs/20260724_cuprate_scale_experiment.md`, but it is the *minor* factor.
+   **RESOLVED 2026-07-26** (that document's §9): pinning cuprate's outbound to monerod's 12
+   via `out-peers` cut its degree 60.2 → 26.4 peers/node, and transaction propagation stayed
+   **~1.78× faster** than the all-monerod baseline (vs 2.19× unpinned). Decomposing the
+   improvement gives **~80% relay cadence, ~20% fan-out**. So higher fan-out is a real but
+   secondary mechanism, and the scale experiment's original cadence attribution was
+   substantially right. Caveat: pinning cuprate's outbound also lowers monerod's *inbound*
+   (28.9 → 22.9), so degree parity is approximate (1.15× rather than 1.0×), which makes the
+   80% cadence share a slight under-estimate.
 
 3. **Monerod is unaffected.** 26.1 peers/node in the mixed network vs 25.2 in the all-monerod
    baseline. Inserting 149 cuprate nodes did not starve or crowd monerod's connectivity —
