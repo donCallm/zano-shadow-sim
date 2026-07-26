@@ -1,8 +1,12 @@
 # Cuprate at scale: a monerod vs monerod+cuprate network experiment
 
-**Date:** 2026-07-24
-**Status:** Results — complete.
-**Companion:** design/architecture in `docs/20260723_multi_node_type_architecture.md`.
+**Date:** 2026-07-24 (follow-up findings folded in 2026-07-26)
+**Status:** Results — complete. §7 (connection characteristics) and §8 (wallet RPC) were
+added by follow-up work after the original write-up; both revise conclusions below, so read
+them before citing §5's mechanism or the "relay-class only" framing.
+**Companions:** design/architecture in `docs/20260723_multi_node_type_architecture.md`;
+full detail for the follow-ups in `docs/20260725_cuprate_connection_matrix.md` and
+`docs/20260724_cuprate_wallet_rpc.md`.
 
 ## TL;DR
 
@@ -21,9 +25,16 @@ transactions **noticeably faster**:
   measurement artifact. Likely due to cuprate's dandelion++ timing.
 - **Connection behavior** (Rucknium analysis of the user nodes): consistent — 0%
   of connections exceed 6h in both; duration distributions are the same shape.
+- **Connection characteristics (§7):** cuprate nodes hold **~2.4× more concurrent
+  peers** (61.5 vs 26.1) — a *default* difference (32 vs 12 outbound), not a behavioural
+  one. Cross-implementation mixing is **random once degree-corrected** (no clustering by
+  implementation), and monerod's own connectivity is **unchanged** (26.1 vs 25.2 baseline).
+- **Wallets (§8):** cuprate **can** back a real `monero-wallet-rpc` — sync *and* send,
+  proven separately. Mining is the only remaining gate.
 
 **Conclusion: `cuprated` is a viable drop-in relay at 300-node scale, and a
-faster transaction relay than monerod in this environment.**
+faster transaction relay than monerod in this environment.** The speedup comes from
+**both** relay cadence and higher fan-out; §7 shows these are not yet separated.
 
 ## Question
 
@@ -47,8 +58,12 @@ Two runs, **identical except node implementation**, for a clean A/B:
 | `simulation_seed` | 20260723 | 20260723 (same) |
 | Sim duration | 8h (coinbase matures ~2h → users transact from 3h) | same |
 
-Cuprate nodes are relay-class only (they cannot mine or run a wallet), so the 5
-miners and 50 users stay monerod. Configs: `test_configs/cuprate_exp_*_300_8h.yaml`.
+Cuprate nodes were placed as relay-class only, because at the time cuprate was believed
+unable to mine *or* back a wallet, so the 5 miners and 50 users stayed monerod.
+**The wallet half of that premise was wrong** — see §8; only mining is a real gate. This
+does not affect any result here (the experiment ran as described), but a repeat could
+legitimately place cuprate under the 50 user nodes too.
+Configs: `test_configs/cuprate_exp_*_300_8h.yaml`.
 Both launched via `run_sim.sh` (niced, to share the box politely). Run A completed
 overnight; Run B was interrupted once by a power outage and re-run (Shadow has no
 checkpoint/resume) — no data was lost since both archives are on persistent disk.
@@ -156,6 +171,101 @@ partners, but the overall connection behavior of the monerod user nodes is
 unchanged by the presence of cuprate. (Outputs: `ruck_{baseline,cuprate}_output.txt`
 + `p2p-connection-duration.png` in each archive.)
 
+### 7. Connection characteristics between the two node types
+
+*Added 2026-07-26. Tool: `analysis/conn_matrix.py`. Full detail:
+`docs/20260725_cuprate_connection_matrix.md`.*
+
+How do the implementations actually wire up to each other? Measured on **concurrent**
+connectivity — distinct peers a node exchanged P2P traffic with inside a 5-minute mid-run
+window (sim-time 04:00–04:05, well after bootstrap):
+
+| pair | count | share |
+|---|---|---|
+| monerod ↔ monerod | 563 | 8.4% |
+| **monerod ↔ cuprate** | **3047** | **45.7%** |
+| cuprate ↔ cuprate | 3061 | 45.9% |
+
+| node impl | n | peers/node | → monerod | → cuprate |
+|---|---|---|---|---|
+| monerod | 157 | 26.1 | 7.2 | 19.0 |
+| cuprate | 149 | **61.5** | 20.4 | 41.1 |
+
+Baseline arm for comparison: 306 monerod nodes, **25.2** peers/node, all pairs monerod↔monerod.
+
+**Cuprate holds ~2.4× more concurrent peers — and this is a configuration default, not a
+behavioural quirk.** Cuprate targets 32 outbound connections
+(`cuprate/binaries/cuprated/src/config/p2p.rs:324`, max inbound 128); monerod targets 12
+(`P2P_DEFAULT_CONNECTIONS_COUNT`, `monero/src/cryptonote_config.h:139`, inbound effectively
+unlimited). Neither arm's config overrides these, so both ran stock defaults. The observed
+2.36× degree ratio tracks the 32/12 = 2.67× outbound-target ratio.
+
+**Mixing is random — implementations do not cluster.** cuprate↔cuprate at 45.9% looks
+hugely over-represented against the 23.7% you'd expect from node counts alone, which would
+suggest cuprate nodes prefer each other. That null is invalid here: when degrees differ
+2.4×, high-degree nodes appear in more pairs *by construction*. Against the degree-corrected
+(configuration-model) null — group share of degree **stubs**, not of nodes (monerod
+157×26.1 = 4098 = 30.9%; cuprate 149×61.5 = 9164 = 69.1%):
+
+| pair | observed | degree-corrected expectation | Δ |
+|---|---|---|---|
+| monerod ↔ monerod | 8.4% | 9.5% | −1.1pp |
+| monerod ↔ cuprate | 45.7% | 42.7% | +3.0pp |
+| cuprate ↔ cuprate | 45.9% | 47.7% | −1.8pp |
+
+Agreement is within 1–3pp and the residual leans *toward* cross-implementation pairing —
+the opposite of homophily. Mechanically expected: neither implementation can identify a
+peer's implementation before connecting, both draw from a shared address book, and cuprate's
+bootstrap seeds are the monerod miners.
+
+**Monerod is unaffected by cuprate's presence** (26.1 vs 25.2 peers/node), reinforcing §1–3's
+functional equivalence.
+
+**Method warning — cumulative peer counts saturate and must not be used for mixing.** Over
+the 8h run *every* cuprate node completes handshakes with all 305 other nodes (`relay-001`:
+1201 `Handshake complete.` events across 305 distinct peers), while monerod nodes only ever
+touch ~115–206 of them. Cumulative pair counts therefore degenerate to exactly 149×157
+(complete bipartite) and C(149,2) — an initial pass reported "+11.7pp cross-impl homophily"
+from those numbers before the exact integers gave the artifact away. That cuprate churns
+through the entire network while monerod touches ~40% is itself a real difference in peer
+turnover, and is reported as such — but any assortativity read off cumulative counts is
+saturation, not topology.
+
+**Privacy implication.** A cuprate node observes more of the network per unit time (61.5 vs
+26.1 concurrent peers), so a cuprate-based passive observer gets a wider view for the same
+node count, and each cuprate node is visible to more peers. This is a *degree* effect
+available to any node that raises `out_peers`, not something cuprate-specific — but it means
+"n% cuprate" shifts the network's observability profile, not only its speed.
+
+### 8. Cuprate can back a real wallet
+
+*Added 2026-07-26. Full detail: `docs/20260724_cuprate_wallet_rpc.md`.*
+
+The "cuprate cannot run a wallet" premise used to scope this experiment (§ Experimental
+design) was **false**, and has been retired. A real `monero-wallet-rpc` syncs *and* sends
+through a `cuprated` daemon, proven in two separate runs — as a remote light wallet (no
+local daemon) and with the wallet co-located on a cuprate node. **No code changes were
+needed**: cuprate already implemented the wallet-facing RPC, and monerosim already rendered
+it reachable on each node's routable IP:18081, so every cuprate node in *this* experiment
+was already serving wallet-capable RPC.
+
+The phrase conflated two things: cuprate ships no wallet *application* (true, still true),
+and cuprate cannot *serve* a wallet over daemon RPC (false — Monero's wallet is a separate
+process; a node need only answer its RPC).
+
+Server-side, cuprate answered `getblocks.bin`, `get_outs.bin`, `get_output_distribution.bin`
+and `sendrawtransaction` with **HTTP 200 and zero non-200** in both runs. This shows wallet2
+*accepts* cuprate's `.bin` responses on the exercised paths; it does not prove byte-identity
+with monerod's serialization. **Mining (`GenerateBlocks` is a stub) is now the only real
+gate on cuprate placement.**
+
+One side finding relevant to fingerprinting: `monero-wallet-rpc` autodetects SSL and probes
+TLS first. monerod's RPC answers; cuprate's plaintext-only axum server does not, so a cuprate
+endpoint logs a single SSL-handshake failure and falls back to plaintext. Functionally
+harmless, but it is a trivially observable **remote fingerprint** distinguishing the two
+implementations by RPC port alone — the first *measured* fingerprinting signal, where the
+privacy discussion below reasons from mechanism.
+
 ## Mechanism: why cuprate propagates transactions faster
 
 > **UPDATE 2026-07-25 — this section identifies relay *cadence* as the mechanism, but
@@ -220,7 +330,23 @@ follow-up.
   *not* evidence of a cuprate speedup. All the deterministic metrics above (sync,
   height, tx counts, propagation in sim-time) are unaffected by co-tenancy.
 - **Monerod-centric monitoring.** The run summary counts only monerod nodes as
-  "online"; cuprate sync was verified separately from cuprate logs.
+  "online"; cuprate sync was verified separately from cuprate logs. *Root cause since
+  identified:* `agents/simulation_monitor/agent.py:233` hardcodes `bitmonero.log`, while
+  cuprate writes to `<data>/<network>/logs/<date-file>`, so cuprate nodes never leave
+  "pending startup". `summary.txt`'s "Nodes online" and "Sync %" therefore count monerod
+  only on any mixed run (here: 157 of 306). A reporting blind spot, not a functional
+  failure — and **no claim in this document depends on those counts**. Unfixed; a proper
+  fix needs a cuprate log-format parser, since the monitor parses monerod's format for
+  height and connections.
+- **Cadence and fan-out are not separated.** §5's ~2× speedup has two candidate
+  mechanisms — relay cadence (1s poll vs 175ms event-driven) and fan-out (§7's 2.4× peers,
+  meaning fewer hops to cover the network). Both plausibly contribute and this experiment
+  cannot apportion them. Isolating cadence requires a run with cuprate's
+  `outbound_connections` pinned to 12.
+- **§7 is one window, one seed.** The degree gap is large and mechanically explained by
+  config defaults, so it is robust; the ±1–3pp mixing residuals are not resolvable at that
+  precision. §7's metric is also activity-based (traffic within the window), so a connection
+  open but idle for the full 5 minutes is not counted.
 - **Tx-event matching** (see §5): the cross-impl tx pairing is receive-vs-receive
   (best available); the trustworthy figure is the monerod-vs-monerod same-event
   comparison. A packet-level or added-instrumentation measurement could tighten it.
@@ -235,25 +361,50 @@ identical block production, zero failures, 100% propagation reach — and is
 Cuprate is a viable drop-in relay, and this experiment is the runtime evidence that
 the multi-node-type feature works at scale.
 
+The follow-up work sharpens two things. The speedup is driven by **relay cadence and
+higher fan-out together**, not cadence alone (§7) — cuprate is simply a
+better-connected participant by default (32 vs 12 outbound), and the two mechanisms
+remain unseparated. And cuprate mixes into the network **without clustering by
+implementation** while leaving monerod's own connectivity untouched, which is the
+topology-level counterpart to the functional equivalence above. Cuprate is also less
+limited than assumed: it can back a real wallet (§8), leaving **mining as the sole
+remaining gate**.
+
 ## Reproducibility
 
 - Configs: `test_configs/cuprate_exp_{baseline,cuprate}_300_8h.yaml`
-- Analysis: `analysis/prop_delta.py` (propagation delta), `analysis/ruck_analysis.r` (connection duration)
+- Analysis: `analysis/prop_delta.py` (propagation delta), `analysis/ruck_analysis.r`
+  (connection duration), `analysis/conn_matrix.py` (§7 cross-impl connection matrix)
 - Archives: `archived_runs/20260723_212123_cuprate_exp_baseline`, `archived_runs/20260724_133050_cuprate_exp_cuprate`
-- Commits: `72cd80e0` (debug file-logging + collection + parser + configs), `5fe400b5` (cuprate tx-regex fix)
+- §8 archives: `archived_runs/20260724_212401_cuprate_wallet_rpc` (remote light wallet),
+  `archived_runs/20260724_224301_cuprate_local_wallet` (co-located wallet);
+  configs `test_configs/cuprate_{wallet_rpc,local_wallet}.yaml`
+- Commits: `72cd80e0` (debug file-logging + collection + parser + configs), `5fe400b5`
+  (cuprate tx-regex fix), `b0d6a064` (§8 wallet support + gate retired), `a2b3b8c2`
+  (§7 connection matrix)
 - Run: `nice -n10 ./run_sim.sh --config test_configs/cuprate_exp_<arm>_300_8h.yaml --name <arm>`
 - Delta: `python3 analysis/prop_delta.py <baseline>/daemon_logs <cuprate>/daemon_logs`
+- §7 matrix (concurrent; ~35 min per archive pair over ~14 GB):
+  `python3 analysis/conn_matrix.py --window='^2000-01-01[ T]04:0[0-4]:' <baseline> <cuprate>`
 
 ## Follow-ups
 
-- **End-to-end tx-delay** (in progress): measure the pre-broadcast stem delay
-  directly (tx-creation timestamp → first network broadcast) to quantify the hidden
-  delta the §5 broadcast-phase measurement misses — expected to show a larger cuprate
-  advantage (monerod 39s embargo vs cuprate ~1.46s stem).
-- **Privacy / fingerprinting** (planned): can cuprate nodes be fingerprinted on the
-  network (dandelion timing, version/handshake, peer-exchange cadence, message
-  format, RPC surface), and does cuprate's faster/shorter dandelion stem weaken
-  transaction-origin privacy? Both carry anonymity-set implications for a
-  mixed-implementation Monero network.
+- ~~**End-to-end tx-delay**~~ **DONE** — measured; see the "End-to-end check" note in the
+  Mechanism section. The expected large hidden embargo delta did *not* exist: the
+  originating node broadcasts ~0.14s after creation in both arms, and monerod's 39s embargo
+  never fires. §5's ~2× is the full end-to-end difference.
+- ~~**Privacy / fingerprinting**~~ **DONE (analysis)** — see the privacy dimension in the
+  Mechanism section plus §7 (observability/degree) and §8 (TLS-probe RPC fingerprint, the
+  first *measured* signal). The in-sim **adversary experiments** (fingerprint classifier,
+  first-spy / timing origin-tracing) remain deliberately deferred.
+- **★ Separate cadence from fan-out** (highest value): repeat the cuprate arm with
+  `outbound_connections` pinned to 12 so cuprate matches monerod's degree. If the ~2×
+  speedup survives, cadence is the driver; if it collapses toward parity, fan-out is. This
+  is the one open question that changes how §5's headline should be stated.
+- **Fix monitor blindness to cuprate nodes** so `summary.txt` stops undercounting on mixed
+  runs (needs a cuprate log-format parser — see Caveats).
 - Quantify run-to-run variance (repeat each arm with different seeds).
 - Push the cuprate fraction higher (all-cuprate relays) and to larger node counts.
+- Now that §8 retires the wallet gate, place cuprate under **user/wallet** nodes too, not
+  just relays — the original design excluded them on a false premise.
+- Exercise wallet paths §8's workload didn't: rescan-from-height, multisig, cold signing.
