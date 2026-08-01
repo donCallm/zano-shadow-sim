@@ -201,9 +201,13 @@ impl NodeImplementation for MonerodImpl {
 /// at runtime: a cuprated node boots FakeChain, completes a bidirectional P2P
 /// handshake with monerod, and validates + stores monerod-mined blocks (first
 /// cross-impl sim 2026-07-23 — see the design doc). Peers are supplied through
-/// the `seed_nodes` config override carried by our cuprate fork (branch
-/// `feat/config-seed-nodes`); [`render`](CupratedImpl::render) fills it from the
-/// spec's `peer_addrs`, and that is what wires a node into the sim topology.
+/// the `seed_nodes` config override carried by our fork
+/// `Fountain5405/cuprateformonerosim` (branch `feat/config-seed-nodes-0.1.0`),
+/// which is exactly one commit on top of the upstream release tag
+/// `cuprated-0.1.0-preview`. Upstream has no way to seed a FakeChain network —
+/// `clear_net_seed_nodes()` returns `[]` for it — so the fork is required until
+/// that patch lands upstream. [`render`](CupratedImpl::render) fills the list
+/// from the spec's `peer_addrs`; that is what wires a node into the sim topology.
 /// cuprated is still EXPERIMENTAL, so [`preflight`](CupratedImpl::preflight)
 /// keeps placement behind the caller's explicit opt-in — but the only real
 /// remaining gate is MINING (GenerateBlocks RPC is a stub). It *can* back a real
