@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Parse command line arguments
 FULL_MONERO_COMPILE=false
 CLEAN_START=false
+INSTALL_CUPRATE=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --full-monero-compile)
@@ -25,6 +26,10 @@ while [[ $# -gt 0 ]]; do
             CLEAN_START=true
             shift
             ;;
+        --cuprate)
+            INSTALL_CUPRATE=true
+            shift
+            ;;
         -h|--help)
             echo "Usage: ./setup.sh [OPTIONS]"
             echo ""
@@ -33,6 +38,11 @@ while [[ $# -gt 0 ]]; do
             echo "                         Use this for a fresh start after failed setup"
             echo "  --full-monero-compile  Build all Monero binaries (slower)"
             echo "                         Default: only build monerod and monero-wallet-rpc"
+            echo "  --cuprate              Also build and install cuprated (the Rust Monero node)"
+            echo "                         Off by default: it is a large Rust build and is only"
+            echo "                         needed for configs using general.node_implementations."
+            echo "                         Pinned by cuprate.pin. Reuse an existing checkout with"
+            echo "                         CUPRATE_DIR=/path/to/cuprate ./setup.sh --cuprate"
             echo "  -h, --help             Show this help message"
             exit 0
             ;;
@@ -1040,6 +1050,73 @@ else
     log_warn "Auto-config will fall back to pessimistic defaults until then."
 fi
 
+# Step 9b: Optional cuprate (cuprated) install
+#
+# Opt-in via --cuprate. cuprated is only needed by configs that set
+# general.node_implementations, and it is a large Rust build, so it is not
+# imposed on setups that will never place a cuprate node. Pinned by
+# cuprate.pin — the same file run_sim.sh checks at preflight.
+install_cuprate() {
+    local pin_file="$SCRIPT_DIR/cuprate.pin"
+    if [[ ! -f "$pin_file" ]]; then
+        log_err "cuprate.pin not found at the repo root — cannot determine the pinned cuprate commit"
+        exit 1
+    fi
+    # First non-comment, non-blank line. Unlike monero.pin/shadowformonero.pin,
+    # cuprate.pin carries explanatory comments below the ref.
+    local cuprate_ref
+    cuprate_ref=$(grep -vE '^[[:space:]]*(#|$)' "$pin_file" | head -n1 | tr -d '[:space:]')
+    if [[ -z "$cuprate_ref" ]]; then
+        log_err "cuprate.pin contains no ref"
+        exit 1
+    fi
+
+    # CUPRATE_DIR reuses an existing checkout instead of cloning a second copy.
+    local cuprate_dir="${CUPRATE_DIR:-$SCRIPT_DIR/sibling_repos/cuprate}"
+    local cuprate_repo="https://github.com/Cuprate/cuprate.git"
+
+    mkdir -p "$SCRIPT_DIR/sibling_repos"
+
+    if [[ -d "$cuprate_dir/.git" ]]; then
+        log_info "Found cuprate checkout at $cuprate_dir; syncing to $cuprate_ref"
+        # --all, not `origin`: a reused checkout may have the canonical repo
+        # as `upstream` with a fork on `origin`.
+        git -C "$cuprate_dir" fetch --all --tags --quiet || true
+    else
+        log_info "Cloning cuprate (canonical upstream) to $cuprate_dir..."
+        rm -rf "$cuprate_dir"
+        # Deliberately not --depth/--branch: cuprate.pin holds a COMMIT, and a
+        # shallow single-branch clone cannot check an arbitrary one out.
+        if ! git clone "$cuprate_repo" "$cuprate_dir"; then
+            log_err "Could not clone cuprate from $cuprate_repo"
+            exit 1
+        fi
+    fi
+
+    if ! git -C "$cuprate_dir" checkout --quiet "$cuprate_ref"; then
+        log_err "Could not checkout cuprate $cuprate_ref (see cuprate.pin)"
+        log_info "If the pin is newer than your clone, re-run after: git -C $cuprate_dir fetch --all"
+        exit 1
+    fi
+
+    log_info "Building cuprated (release, -j${BUILD_JOBS}) — this takes a while..."
+    if ! (cd "$cuprate_dir" && cargo build --release -p cuprated -j "$BUILD_JOBS"); then
+        log_err "cuprated build failed"
+        exit 1
+    fi
+
+    cp -f "$cuprate_dir/target/release/cuprated" "$MONEROSIM_BIN/cuprated"
+    log_ok "Installed cuprated to $MONEROSIM_BIN/cuprated"
+    cd "$SCRIPT_DIR"
+}
+
+if [[ "$INSTALL_CUPRATE" == true ]]; then
+    log_header "Step 9b: Installing cuprate (cuprated)"
+    install_cuprate
+else
+    log_info "Skipping cuprate — pass --cuprate to install cuprated for multi-node-type configs"
+fi
+
 # Step 10: Optional Test Simulation
 log_header "Step 10: Optional Test Simulation"
 
@@ -1094,5 +1171,8 @@ log_info "Installed binaries: $MONEROSIM_BIN/"
 echo "  - shadow"
 echo "  - monerod"
 echo "  - monero-wallet-rpc"
+if [[ "$INSTALL_CUPRATE" == true ]]; then
+    echo "  - cuprated"
+fi
 echo ""
 log_ok "Happy simulating!"
