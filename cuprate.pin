@@ -1,0 +1,27 @@
+e3a869dd8cd68867adca7fddece077f4c90e07c4
+
+# Pinned cuprate commit — CANONICAL upstream: https://github.com/Cuprate/cuprate
+#
+# Unlike monero.pin / shadowformonero.pin, cuprate is OPTIONAL: it is only
+# needed for configs that place cuprate nodes (general.node_implementations).
+# run_sim.sh therefore only enforces this pin when the config asks for cuprate.
+#
+# Why a specific commit rather than a release tag: `p2p.clear_net.seed_nodes`
+# landed upstream in e3a869d (PR #663, 2026-08-01), AFTER the cuprated-0.1.0-preview
+# tag. Without it, cuprate cannot join an isolated FakeChain network at all —
+# clear_net_seed_nodes() returns [] for FakeChain, so a node panics with
+# "No seed nodes available to get peers from". An older build fails differently
+# but just as fatally: cuprate's config uses serde deny_unknown_fields, so the
+# seed_nodes key monerosim emits is rejected outright at daemon start.
+#
+# cuprate is NOT built by setup.sh/update.sh — build it by hand:
+#     git -C ../cuprate checkout canonical && git -C ../cuprate pull --ff-only
+#     cargo build --release -p cuprated --manifest-path ../cuprate/Cargo.toml
+#     cp ../cuprate/target/release/cuprated ~/.monerosim/bin/cuprated
+#
+# To revert to the fork (Fountain5405/cuprateformonerosim, branch
+# feat/config-seed-nodes-0.1.0), check that branch out, rebuild, and replace the
+# commit above with its HEAD. The fork carries nothing upstream lacks as of
+# e3a869d; it is kept only as an escape hatch.
+#
+# See docs/20260802_cuprate_upstream_merge.md

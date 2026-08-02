@@ -318,6 +318,8 @@ monerosim/
 - [Determinism Fixes](docs/DETERMINISM_FIXES.md) - Sources of non-determinism and fixes
 - [AI Config Generator](docs/AI_CONFIG_GENERATOR.md) - LLM-based configuration generation
 - [Node Reachability: Firewall vs. Hidden](docs/20260722_node_reachability_firewall.md) - Modelling unreachable/NAT nodes. **Breaking change:** `reachable_fraction` now drives a physical inbound firewall (`blocked_inbound_ports`, needs shadowformonero v0.2.4); `--hide-my-port` moved to the new `hidden_fraction`
+- [Cuprate at Scale](docs/20260724_cuprate_scale_experiment.md) - 300-node monerod vs monerod+cuprate experiment: functional equivalence, ~2× faster tx propagation, and why
+- [Cuprate Upstream Merge](docs/20260802_cuprate_upstream_merge.md) - cuprate 0.1.0-preview; our `seed_nodes` patch merged upstream (`e3a869d`), so **no cuprate fork is needed** — see `cuprate.pin`
 
 ## Requirements
 

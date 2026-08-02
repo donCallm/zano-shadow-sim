@@ -543,6 +543,47 @@ preflight_checks() {
     fi
     log_ok "Config file: $CONFIG"
 
+    # Verify the installed cuprated matches this checkout's pinned cuprate
+    # commit (cuprate.pin). Unlike the monero/shadow checks this is CONDITIONAL:
+    # cuprate is optional, so a stale-or-absent cuprated must never block a
+    # monerod-only run. We gate on the config actually naming `cuprated:` under
+    # general.node_implementations.
+    #
+    # Worth failing loudly on: cuprate's config uses serde deny_unknown_fields,
+    # so a build predating e3a869d (PR #663) rejects the `seed_nodes` key we
+    # emit and dies at daemon start with an opaque parse error, 300 hosts at a
+    # time. See docs/20260802_cuprate_upstream_merge.md.
+    # Dev override: MONEROSIM_SKIP_CUPRATE_CHECK=1 ./run_sim.sh ...
+    local cuprated_bin="$HOME/.monerosim/bin/cuprated"
+    local cuprate_pin_file="$SCRIPT_DIR/cuprate.pin"
+    if [[ "${MONEROSIM_SKIP_CUPRATE_CHECK:-0}" == "1" ]]; then
+        log_warn "MONEROSIM_SKIP_CUPRATE_CHECK=1 — skipping cuprate version check"
+    elif grep -qE '^[[:space:]]*cuprated[[:space:]]*:' "$CONFIG" 2>/dev/null; then
+        if [[ ! -x "$cuprated_bin" ]]; then
+            log_err "Config places cuprate nodes but no cuprated binary at $cuprated_bin"
+            log_info "Build it: see cuprate.pin"
+            exit 1
+        elif [[ -f "$cuprate_pin_file" ]]; then
+            local cuprate_pin cuprate_commit
+            # first non-comment, non-blank line
+            cuprate_pin=$(grep -vE '^[[:space:]]*(#|$)' "$cuprate_pin_file" | head -n1 | tr -d '[:space:]')
+            cuprate_commit=$("$cuprated_bin" --version 2>/dev/null \
+                | python3 -c 'import sys,json; print(json.load(sys.stdin).get("commit",""))' 2>/dev/null)
+            if [[ -n "$cuprate_commit" && "$cuprate_commit" == "$cuprate_pin" ]]; then
+                log_ok "cuprate matches pin: ${cuprate_pin:0:12}"
+            else
+                log_err "Installed cuprated does not match this monerosim's pinned cuprate commit"
+                log_err "  installed: ${cuprate_commit:-<unreadable>}"
+                log_err "  pinned:    $cuprate_pin  (cuprate.pin)"
+                log_info "Fix: rebuild cuprated at the pinned commit — see cuprate.pin"
+                log_info "Dev override: MONEROSIM_SKIP_CUPRATE_CHECK=1"
+                exit 1
+            fi
+        else
+            log_warn "cuprate.pin missing — skipping cuprate version check"
+        fi
+    fi
+
     # Parse stop_time from config
     STOP_TIME_RAW=$(python3 scripts/run_sim_helpers.py extract-stop-time "$CONFIG" 2>/dev/null)
 
