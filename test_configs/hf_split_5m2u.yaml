@@ -1,0 +1,134 @@
+# Hard fork CHAIN SPLIT variant — 5 miners + 2 users, 6h, fork at height 105.
+#
+# Same population as hf_smoke_5m2u.yaml, but the laggard side has HASHPOWER:
+# miner-005 (20% of hashrate) and user-02 both run the short schedule. After
+# the fork this is a true minority partition, not a stall — miner-005 keeps
+# extending the v14 chain and user-02's transactions keep CONFIRMING on it
+# (the "exchange kept following the old chain" scenario), while the 80%
+# majority extends the v15 chain.
+#
+# Timeline (measured cadence ~2.8 min/block aggregate pre-fork):
+#   ~4h55m  height 105: chains diverge
+#           - majority (4 miners, 80%): v15 blocks, ~3.5 min cadence
+#           - minority (miner-005, 20%): v14 blocks, ~14 min cadence
+#   6h      stop — majority tip ≈ 123, minority tip ≈ 109-110
+#
+# Pass criteria:
+#   - both partitions grow PAST 105: majority nodes share one tip (v15),
+#     miner-005 + user-02 share a lower tip (v14) — two internally
+#     consistent chains
+#   - user-02 daemon log shows "Including transaction" AFTER the fork
+#     (its txs confirm on the minority chain — impossible on the majority,
+#     which rejects v14-era ring-11/BP transactions)
+#   - handshake refusals in BOTH directions across the partition
+#   - shadow exit 0, no crashes
+#
+# Seeds are declared on monerod-hf with the full schedule (see
+# docs/HARDFORK_TESTING.md §4).
+general:
+  stop_time: 6h
+  simulation_seed: 12345
+  bootstrap_end_time: 4h
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  process_threads: 2
+  native_preemption: true
+  daemon_defaults:
+    log-level: monitor
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+    fakechain-hard-forks: "1:0,14:1,15:105"
+  wallet_defaults:
+    log-level: 1
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+agents:
+  monero-seed-001:
+    daemon: monerod-hf
+    start_time: 0s
+  monero-seed-002:
+    daemon: monerod-hf
+    start_time: 1s
+  monero-seed-003:
+    daemon: monerod-hf
+    start_time: 2s
+  monero-seed-004:
+    daemon: monerod-hf
+    start_time: 3s
+  monero-seed-005:
+    daemon: monerod-hf
+    start_time: 4s
+  monero-seed-006:
+    daemon: monerod-hf
+    start_time: 5s
+  miner-001:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-002:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 1s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-003:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 2s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-004:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 3s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-005:
+    # Minority miner: 20% of hashrate stays on v14. After the fork it keeps
+    # extending the old chain — the partition's block producer.
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 4s
+    hashrate: 20
+    can_receive_distributions: true
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1"
+      log-level: "1,net.cn:DEBUG"
+  user-01:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2400s
+    transaction_interval: 120
+    activity_start_time: 14400
+    can_receive_distributions: true
+  user-02:
+    # Minority user: rides the v14 partition. Its wallet should KEEP
+    # confirming after the fork — at the minority's slower cadence.
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2410s
+    transaction_interval: 120
+    activity_start_time: 14520
+    can_receive_distributions: true
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1"
+      log-level: "1,net.cn:DEBUG"
+  miner-distributor:
+    script: agents.miner_distributor
+    wait_time: 4200
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300

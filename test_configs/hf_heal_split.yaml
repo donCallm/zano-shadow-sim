@@ -1,0 +1,112 @@
+# Late-upgrade HEALING — exercises monerod's pop-blocks path (~95 min sim).
+#
+# The pop path (Blockchain::init: "Current top block ... disagrees with the
+# ideal version" -> pop_block loop) only fires when a node holds blocks ABOVE
+# the fork height that are invalid under its new schedule. A stalled node has
+# nothing to pop — so this config is a small 50/50 SPLIT plus a phase-based
+# upgrade:
+#
+#   miner-001 (50%): full schedule — majority v15 chain after H=10 (~28m)
+#   miner-002 (50%): short schedule — keeps the v14 minority chain growing
+#   relay-001: the HEALER —
+#     phase 0 (5m -> 55m):  short schedule; follows the MINORITY chain past
+#                           the fork (accepts miner-002's v14 blocks >= 10)
+#     phase 1 (60m -> end): full schedule on the SAME data dir; on restart
+#                           monerod pops its v14 blocks above index 9 and
+#                           resyncs the majority chain
+#
+# Pass criteria:
+#   - relay-001 phase-0 height grows PAST the fork (rode the minority chain)
+#   - phase-1 log: "disagrees with the ideal version" + blocks popped
+#   - relay-001 final height == majority tip (miner-001's side), NOT the
+#     minority tip
+#   - shadow exit 0; phase 0 exits 0 at its stop time
+#
+# NOTE: the schedule knob is per-agent here, NOT in daemon_defaults — a
+# defaults knob would collide with relay-001's per-phase args (monerod aborts
+# on duplicated options; preflight rejects the combination).
+general:
+  stop_time: 95m
+  simulation_seed: 12345
+  bootstrap_end_time: 20m
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  process_threads: 2
+  native_preemption: true
+  daemon_defaults:
+    log-level: monitor
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+  wallet_defaults:
+    log-level: 1
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+agents:
+  monero-seed-001:
+    daemon: monerod-hf
+    start_time: 0s
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1,15:10"
+  monero-seed-002:
+    daemon: monerod-hf
+    start_time: 1s
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1,15:10"
+  monero-seed-003:
+    daemon: monerod-hf
+    start_time: 2s
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1,15:10"
+  monero-seed-004:
+    daemon: monerod-hf
+    start_time: 3s
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1,15:10"
+  monero-seed-005:
+    daemon: monerod-hf
+    start_time: 4s
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1,15:10"
+  monero-seed-006:
+    daemon: monerod-hf
+    start_time: 5s
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1,15:10"
+  miner-001:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    hashrate: 50
+    can_receive_distributions: true
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1,15:10"
+  miner-002:
+    # Minority-chain engine: stays on v14 forever so the healer has a chain
+    # to follow past the fork (and later, blocks to pop).
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 1s
+    hashrate: 50
+    can_receive_distributions: true
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1"
+      log-level: "1,net.cn:DEBUG"
+  relay-001:
+    # The healer. Phase 0 rides the minority chain; phase 1 restarts on the
+    # full schedule and must pop its stale v14 blocks and resync.
+    daemon_0: monerod-hf
+    daemon_0_start: 300s
+    daemon_0_stop: 3300s
+    daemon_0_args: ["--fakechain-hard-forks=1:0,14:1"]
+    daemon_1: monerod-hf
+    daemon_1_start: 3600s
+    daemon_1_args: ["--fakechain-hard-forks=1:0,14:1,15:10"]
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300
