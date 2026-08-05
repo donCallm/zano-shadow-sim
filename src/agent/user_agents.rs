@@ -341,6 +341,40 @@ fn build_turnover_schedule(
     out
 }
 
+/// The monerod CLI knob (added by patches/monero-fakechain-hardforks.patch)
+/// that overrides the regtest hard fork schedule. Stock monerod exits on the
+/// unknown option, so any agent given it must run a patched binary — see
+/// `binary_supports_hf_schedule`.
+const HF_SCHEDULE_KNOB: &str = "fakechain-hard-forks";
+
+/// True if any raw daemon arg sets --fakechain-hard-forks (legacy
+/// `daemon_args` or per-phase `daemon_N_args`).
+fn args_mention_hf_knob(args: Option<&Vec<String>>) -> bool {
+    args.map(|v| v.iter().any(|a| a.contains("--fakechain-hard-forks")))
+        .unwrap_or(false)
+}
+
+/// Capability probe: does `binary --help` list --fakechain-hard-forks?
+/// A version check can't tell — the patched build prints the same tag as
+/// vanilla. Cached per path so a 300-agent config spawns the probe once
+/// per distinct binary, not per agent.
+fn binary_supports_hf_schedule(path: &str, cache: &mut HashMap<String, bool>) -> bool {
+    if let Some(v) = cache.get(path) {
+        return *v;
+    }
+    let supported = std::process::Command::new(path)
+        .arg("--help")
+        .output()
+        .map(|o| {
+            let mut text = o.stdout;
+            text.extend_from_slice(&o.stderr);
+            String::from_utf8_lossy(&text).contains(HF_SCHEDULE_KNOB)
+        })
+        .unwrap_or(false);
+    cache.insert(path.to_string(), supported);
+    supported
+}
+
 pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre::Result<()> {
     let UserAgentProcessContext {
         agents,
@@ -508,6 +542,41 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
             node_impl_assignment.len()
         );
     }
+
+    // Custom hard fork schedules are monerod-only in this version. Cuprate's
+    // FakeChain table is compiled in (all forks at height 1) and
+    // CupratedImpl::render silently drops daemon options it doesn't know, so
+    // mixing the two would produce cuprate nodes that reject the forked chain
+    // with no error at generation OR boot time. Refuse up front.
+    let hf_knob_used = daemon_defaults
+        .map(|d| d.contains_key(HF_SCHEDULE_KNOB))
+        .unwrap_or(false)
+        || user_agents.iter().any(|(_, cfg)| {
+            cfg.daemon_options
+                .as_ref()
+                .map(|o| o.contains_key(HF_SCHEDULE_KNOB))
+                .unwrap_or(false)
+                || args_mention_hf_knob(cfg.daemon_args.as_ref())
+                || cfg
+                    .daemon_phases
+                    .as_ref()
+                    .map(|phases| {
+                        phases
+                            .values()
+                            .any(|p| args_mention_hf_knob(p.args.as_ref()))
+                    })
+                    .unwrap_or(false)
+        });
+    if hf_knob_used && !node_impl_assignment.is_empty() {
+        return Err(color_eyre::eyre::eyre!(
+            "fakechain-hard-forks is set but general.node_implementations assigns \
+             non-monerod nodes: cuprate has no custom hard fork schedule support, \
+             so those nodes would reject the forked chain. Remove \
+             node_implementations or the hard fork schedule."
+        ));
+    }
+    // Probe results for binary_supports_hf_schedule, shared across all agents.
+    let mut hf_capability_cache: HashMap<String, bool> = HashMap::new();
     let turnover_params: Option<(f64, f64, f64, f64, f64)> = match turnover {
         Some(c) => {
             let mean_session = parse_duration_to_seconds(&c.mean_session).map_err(|e| {
@@ -670,6 +739,30 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
         // Expand symbolic log-level values (e.g., "monitor") into the
         // equivalent monerod category string before they reach the CLI.
         translate_daemon_log_level(&mut merged_daemon_options);
+
+        // Hard fork schedule: the knob may live in the merged options OR in raw
+        // daemon args, but not both — options_to_args() and the raw args are
+        // both emitted, and monerod (boost::program_options) aborts on a
+        // duplicated scalar option.
+        let hf_in_options = merged_daemon_options.contains_key(HF_SCHEDULE_KNOB);
+        let hf_in_raw_args = args_mention_hf_knob(user_agent_config.daemon_args.as_ref())
+            || user_agent_config
+                .daemon_phases
+                .as_ref()
+                .map(|phases| {
+                    phases
+                        .values()
+                        .any(|p| args_mention_hf_knob(p.args.as_ref()))
+                })
+                .unwrap_or(false);
+        if hf_in_options && hf_in_raw_args {
+            return Err(color_eyre::eyre::eyre!(
+                "Agent '{}': fakechain-hard-forks is set in daemon_options/daemon_defaults \
+                 AND in raw daemon args; monerod aborts on duplicate options. Set it in \
+                 exactly one place (for phase-based upgrades: per-phase args only).",
+                agent_id
+            ));
+        }
 
         // monerosim baseline: lift --max-connections-per-ip off monerod's
         // default of 1 (the cap counts simultaneous INCOMING connections
@@ -859,6 +952,22 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                         )
                     })?;
 
+                // Every phase inherits the merged daemon options, so a schedule
+                // set there must be understood by every phase's binary; a
+                // schedule set in this phase's own args by this phase's binary.
+                if (hf_in_options || args_mention_hf_knob(phase.args.as_ref()))
+                    && !binary_supports_hf_schedule(&daemon_binary_path, &mut hf_capability_cache)
+                {
+                    return Err(color_eyre::eyre::eyre!(
+                        "Agent '{}' phase {}: fakechain-hard-forks is set but '{}' does not \
+                         support it (stock monerod exits on unknown options). Build the \
+                         patched binary with ./setup.sh --hardfork and use it for this phase.",
+                        agent_id,
+                        phase_num,
+                        daemon_binary_path
+                    ));
+                }
+
                 // Build environment for this phase
                 let mut daemon_env = monero_environment.clone();
                 if let Some(custom_env) = &phase.env {
@@ -937,6 +1046,22 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                     _ => monerod_path.to_string(),
                 }
             };
+
+            // A schedule reaches this daemon via merged options or raw
+            // daemon_args; either way the binary must actually know the flag
+            // (stock monerod exits on unknown options, taking the whole run
+            // with it — one host at a time).
+            if (hf_in_options || args_mention_hf_knob(user_agent_config.daemon_args.as_ref()))
+                && !binary_supports_hf_schedule(&daemon_binary_path, &mut hf_capability_cache)
+            {
+                return Err(color_eyre::eyre::eyre!(
+                    "Agent '{}': fakechain-hard-forks is set but '{}' does not support it \
+                     (stock monerod exits on unknown options). Build the patched binary \
+                     with ./setup.sh --hardfork and set daemon: monerod-hf for this agent.",
+                    agent_id,
+                    daemon_binary_path
+                ));
+            }
 
             // Merge custom environment from config with base environment
             let mut daemon_env = monero_environment.clone();
