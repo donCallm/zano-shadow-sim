@@ -1,0 +1,75 @@
+# Hard fork micro smoke — fastest possible end-to-end exercise of
+# --fakechain-hard-forks (see docs and patches/monero-fakechain-hardforks.patch).
+#
+# One upgraded miner (schedule 1:0,14:1,15:10) and one laggard relay whose
+# schedule stops at v14. Expected outcome:
+#   - both sync v14 blocks to height 9
+#   - at height 10 the miner switches to major_version 15
+#   - the laggard rejects every v15 block ("has old version" +
+#     "Block verification failed, dropping connection" in its log),
+#     stalls at height 9, and progressively bans its peers
+#   - the miner keeps extending the chain to simulation end
+#
+# The six monero-seed hosts are DECLARED here (normally auto-injected) so they
+# run monerod-hf instead of stock monerod: every daemon in a fork config must
+# understand the schedule knob it inherits from daemon_defaults — preflight
+# enforces this. Declared seeds inherit the full (upgraded) schedule.
+general:
+  stop_time: 45m
+  simulation_seed: 12345
+  bootstrap_end_time: 10m
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  process_threads: 2
+  native_preemption: true
+  daemon_defaults:
+    log-level: monitor
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+    fakechain-hard-forks: "1:0,14:1,15:10"
+  wallet_defaults:
+    log-level: 1
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+agents:
+  monero-seed-001:
+    daemon: monerod-hf
+    start_time: 0s
+  monero-seed-002:
+    daemon: monerod-hf
+    start_time: 1s
+  monero-seed-003:
+    daemon: monerod-hf
+    start_time: 2s
+  monero-seed-004:
+    daemon: monerod-hf
+    start_time: 3s
+  monero-seed-005:
+    daemon: monerod-hf
+    start_time: 4s
+  monero-seed-006:
+    daemon: monerod-hf
+    start_time: 5s
+  miner-001:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    hashrate: 100
+  relay-001:
+    # The "didn't upgrade" node: its schedule has no v15 entry, which is
+    # consensus-identical to running pre-v15 software. log-level raises the
+    # net.cn category so the handshake-refusal line ("peer claims higher
+    # version") is captured too.
+    daemon: monerod-hf
+    start_time: 5m
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1"
+      log-level: "1,net.cn:DEBUG"
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300
