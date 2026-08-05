@@ -4,8 +4,9 @@ How monerosim simulates a Monero network upgrade: start the network on
 consensus version X, fork to X+1 at a chosen height, and leave any subset of
 nodes behind to study how the network handles partial adoption.
 
-**Status:** working, validated end-to-end (see §8). monerod-only — cuprate
-nodes cannot participate in fork scenarios (§7).
+**Status:** working; all three scenarios validated end-to-end — stall,
+chain split, and late-upgrade healing (§8). monerod-only — cuprate nodes
+cannot participate in fork scenarios (§7).
 
 ---
 
@@ -191,9 +192,11 @@ laggard unreachable post-H — that is the finding, not a broken run.
 - The `simulation_monitor` "Processes: N monerod" counter pattern-matches
   the name `monerod` and shows 0 for `monerod-hf` runs — cosmetic; per-node
   status (from `bitmonero.log`) is correct.
-- Upstreaming `--fakechain-hard-forks` to monero-project would delete the
-  patch; it is `--regtest`-scoped test tooling, the same shape as the
-  cuprate `seed_nodes` option that was accepted upstream (PR #663).
+- The patch is **vendored deliberately** — upstreaming to monero-project is
+  possible later (it is `--regtest`-scoped test tooling, the same shape as
+  the cuprate `seed_nodes` option accepted upstream as PR #663) but is
+  deferred for now; `git apply --check` in setup.sh guards against pin
+  drift in the meantime.
 
 ## 8. Validation results
 
@@ -219,6 +222,33 @@ laggard unreachable post-H — that is the finding, not a broken run.
 | user-01 wallet (upgraded) | **16 txs confirmed pre-fork + 22 post-fork** — transacted on both sides |
 | user-02 wallet (laggard) | 14 confirmed pre-fork; **20 sent post-fork, 0 confirmed** — stranded, kept trying |
 | cadence | 128 blocks / 6h = 2.81 min/block, matching the recalibration |
+
+### Chain split (`hf_split_5m2u.yaml`, minority = miner-005 + user-02, 20% hashrate)
+
+| check | result |
+|---|---|
+| two live chains | majority tip **125** (v15, 11 nodes identical) vs minority tip **108** (v14, both members identical) — 80/20 hashrate visible in the heights |
+| divergence | minority rejected v15 blocks 15×/11×; miner-005 logged **12,167** handshake refusals reconnect-churning against the majority |
+| **minority economy lives** | user-02 saw tx inclusions continuously after the fork (57 post-fork, 05:00→05:57) at the minority's slower cadence — vs **0** in the stall variant |
+| completion | shadow exit 0, all 13 daemons to 6h |
+
+Together with the stall gate this is the full answer to "what happens to
+the n% who don't upgrade": **without hashpower they strand; with hashpower
+they run a parallel economy on the old chain.**
+
+### Late-upgrade healing (`hf_heal_split.yaml`, 50/50 split + phase upgrade)
+
+| check | result |
+|---|---|
+| healer rode the minority chain | popped from top index **11** — two v14 blocks above fork index 10 |
+| pop path fired | `Current top block ... has version 14 which disagrees with the ideal version 15`, blocks popped on phase-1 restart |
+| healed | final height == majority tip (21), minority chain abandoned |
+| phases | phase-0 clean exit at 55m, phase-1 restart on same data dir, shadow exit 0 |
+
+Checker lesson encoded here: under a 50/50 hashrate split both chains grow
+at the **same rate**, so equal heights are expected — chain divergence must
+be proven behaviorally (the minority rejecting v15 blocks), not by height
+inequality.
 
 ---
 
