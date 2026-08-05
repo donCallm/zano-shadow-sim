@@ -1,0 +1,110 @@
+diff --git a/src/cryptonote_core/cryptonote_core.cpp b/src/cryptonote_core/cryptonote_core.cpp
+index 4d7a454b2..cca70497a 100644
+--- a/src/cryptonote_core/cryptonote_core.cpp
++++ b/src/cryptonote_core/cryptonote_core.cpp
+@@ -97,6 +97,13 @@ namespace cryptonote
+   , "Fixed difficulty used for testing."
+   , 0
+   };
++  const command_line::arg_descriptor<std::string> arg_fakechain_hard_forks = {
++    "fakechain-hard-forks"
++  , "Override the regtest hard fork schedule with a comma-separated list of "
++    "version:height pairs, strictly increasing in both (e.g. 1:0,14:1,15:500). "
++    "The first pair must be 1:0. Requires --regtest."
++  , ""
++  };
+   const command_line::arg_descriptor<std::string, false, true, 3> arg_data_dir = {
+     "data-dir"
+   , "Specify data directory"
+@@ -323,6 +330,7 @@ namespace cryptonote
+     command_line::add_arg(desc, arg_regtest_on);
+     command_line::add_arg(desc, arg_keep_fakechain);
+     command_line::add_arg(desc, arg_fixed_difficulty);
++    command_line::add_arg(desc, arg_fakechain_hard_forks);
+     command_line::add_arg(desc, arg_dns_checkpoints);
+     command_line::add_arg(desc, arg_prep_blocks_threads);
+     command_line::add_arg(desc, arg_fast_block_sync);
+@@ -674,8 +682,82 @@ namespace cryptonote
+       regtest_hard_forks,
+       0
+     };
++    // --fakechain-hard-forks: override the hardcoded regtest schedule so a
++    // network upgrade can be exercised at a chosen height. Storage is local,
++    // like regtest_test_options above: Blockchain::init only reads it during
++    // the init call.
++    std::vector<std::pair<uint8_t, uint64_t>> custom_hard_forks;
++    const std::string custom_hf_spec = command_line::get_arg(vm, arg_fakechain_hard_forks);
++    if (!custom_hf_spec.empty())
++    {
++      if (!regtest)
++      {
++        MERROR("--fakechain-hard-forks requires --regtest");
++        return false;
++      }
++      // Validate strictly increasing versions and heights here: Blockchain::init
++      // ignores HardFork::add_fork's return value, so a bad list would otherwise
++      // be silently mis-applied instead of rejected.
++      size_t pos = 0;
++      while (pos <= custom_hf_spec.size())
++      {
++        size_t comma = custom_hf_spec.find(',', pos);
++        if (comma == std::string::npos)
++          comma = custom_hf_spec.size();
++        const std::string pair_str = custom_hf_spec.substr(pos, comma - pos);
++        pos = comma + 1;
++        const size_t colon = pair_str.find(':');
++        if (colon == std::string::npos || pair_str.find(':', colon + 1) != std::string::npos)
++        {
++          MERROR("--fakechain-hard-forks: bad entry '" << pair_str << "', expected version:height");
++          return false;
++        }
++        unsigned long version, height;
++        try
++        {
++          size_t idx0, idx1;
++          version = std::stoul(pair_str.substr(0, colon), &idx0);
++          height = std::stoul(pair_str.substr(colon + 1), &idx1);
++          if (idx0 != colon || idx1 != pair_str.size() - colon - 1)
++            throw std::invalid_argument("trailing characters");
++        }
++        catch (const std::exception &e)
++        {
++          MERROR("--fakechain-hard-forks: bad entry '" << pair_str << "': " << e.what());
++          return false;
++        }
++        if (version < 1 || version > 255)
++        {
++          MERROR("--fakechain-hard-forks: version " << version << " out of range 1..255");
++          return false;
++        }
++        if (custom_hard_forks.empty())
++        {
++          if (version != 1 || height != 0)
++          {
++            MERROR("--fakechain-hard-forks: first entry must be 1:0 (genesis is a v1 block)");
++            return false;
++          }
++        }
++        else if (version <= custom_hard_forks.back().first || height <= custom_hard_forks.back().second)
++        {
++          MERROR("--fakechain-hard-forks: entries must be strictly increasing in both version and height ('" << pair_str << "')");
++          return false;
++        }
++        custom_hard_forks.emplace_back((uint8_t)version, (uint64_t)height);
++      }
++      custom_hard_forks.emplace_back(0, 0); // sentinel: Blockchain::init iterates until version 0
++      MGINFO("Using custom fakechain hard fork schedule: " << custom_hf_spec);
++    }
++    const cryptonote::test_options custom_test_options = {
++      custom_hard_forks.data(),
++      0
++    };
++    const cryptonote::test_options *effective_test_options =
++      !custom_hard_forks.empty() ? &custom_test_options :
++      (regtest ? &regtest_test_options : test_options);
+     const difficulty_type fixed_difficulty = command_line::get_arg(vm, arg_fixed_difficulty);
+-    r = m_blockchain_storage.init(db.release(), m_nettype, m_offline, regtest ? &regtest_test_options : test_options, fixed_difficulty, get_checkpoints);
++    r = m_blockchain_storage.init(db.release(), m_nettype, m_offline, effective_test_options, fixed_difficulty, get_checkpoints);
+     CHECK_AND_ASSERT_MES(r, false, "Failed to initialize blockchain storage");
+ 
+     r = m_mempool.init(max_txpool_weight, m_nettype == FAKECHAIN);
