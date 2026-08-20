@@ -1,0 +1,81 @@
+# MULTI-FORK micro validation — two hard forks in one ~90-minute run.
+#
+# Schedule: v14 from height 1, v15 at index 10 (~28m), v16 at index 20 (~56m).
+# Two laggard cohorts, one per fork:
+#   relay-old  (schedule ...14:1):        never upgrades — stalls at the FIRST
+#                                         fork (summary height 10)
+#   relay-mid  (schedule ...14:1,15:10):  crosses fork 1, stalls at the SECOND
+#                                         (summary height 20). Its rejection
+#                                         line "has old version: 16 current: 15"
+#                                         is the multi-fork money quote: being
+#                                         AT v15 proves it followed fork 1.
+#
+# Pass criteria:
+#   - upgraded nodes (6 seeds + miner) share one tip well past 20
+#   - relay-old  frozen at height 10 with v15-vs-14 rejections
+#   - relay-mid  frozen at height 20 with v16-vs-15 rejections
+#   - shadow exit 0
+general:
+  stop_time: 90m
+  simulation_seed: 12345
+  bootstrap_end_time: 10m
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  process_threads: 2
+  native_preemption: true
+  daemon_defaults:
+    log-level: monitor
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+    fakechain-hard-forks: "1:0,14:1,15:10,16:20"
+  wallet_defaults:
+    log-level: 1
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+agents:
+  monero-seed-001:
+    daemon: monerod-hf
+    start_time: 0s
+  monero-seed-002:
+    daemon: monerod-hf
+    start_time: 1s
+  monero-seed-003:
+    daemon: monerod-hf
+    start_time: 2s
+  monero-seed-004:
+    daemon: monerod-hf
+    start_time: 3s
+  monero-seed-005:
+    daemon: monerod-hf
+    start_time: 4s
+  monero-seed-006:
+    daemon: monerod-hf
+    start_time: 5s
+  miner-001:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    hashrate: 100
+  relay-old:
+    # Cohort 1: never upgrades past v14 — stalls at the first fork.
+    daemon: monerod-hf
+    start_time: 5m
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1"
+      log-level: "1,net.cn:DEBUG"
+  relay-mid:
+    # Cohort 2: upgraded once (has v15) but never got v16 — follows the
+    # first fork, stalls at the second.
+    daemon: monerod-hf
+    start_time: 5m
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1,15:10"
+      log-level: "1,net.cn:DEBUG"
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300

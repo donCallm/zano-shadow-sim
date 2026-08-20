@@ -250,6 +250,21 @@ at the **same rate**, so equal heights are expected — chain divergence must
 be proven behaviorally (the minority rejecting v15 blocks), not by height
 inequality.
 
+### Multi-fork (`hf_multifork_micro.yaml`, v14→v15→v16 at 10 and 20, 90 min)
+
+The schedule string takes any number of forks; this run validates two in
+one sim with a laggard cohort at each step:
+
+| check | result |
+|---|---|
+| upgraded nodes | one tip, **38**, past both forks |
+| relay-old (schedule ends at v14) | frozen at **10** — first fork; rejected only `15 vs 14` |
+| relay-mid (schedule ends at v15) | frozen at **20** — second fork; rejected only `16 vs 15`, never `15 vs 14` — proving it followed fork 1 and stalled at fork 2 |
+| partition | handshake refusals on both laggards |
+
+So staged multi-fork scenarios (cohorts stuck at different consensus eras)
+are measured behavior, not just architecture.
+
 ---
 
 *Feature branch: `feat/hardfork-schedule`. Patch:
