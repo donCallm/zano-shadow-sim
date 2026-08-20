@@ -955,29 +955,36 @@ class SimulationMonitorAgent(BaseAgent):
                 with open(transactions_file, 'r') as f:
                     transactions = json.load(f)
 
-                # Update transaction count
-                self.transaction_stats["total_created"] = len(transactions)
-
                 # Reset per-node creation counts
                 self.transaction_stats["tx_created_by_node"] = {}
 
-                # Track unique transaction hashes and per-sender counts
+                # Count ON-CHAIN transactions (each transfer_split part is a
+                # real chain tx), so "Created" is comparable to "In blocks".
+                # Current schema: one entry per logical transfer with a
+                # tx_hashes list (issues #6/#7). Legacy entries with a single
+                # tx_hash are still accepted.
+                total_created = 0
                 for tx in transactions:
-                    if isinstance(tx, dict):
-                        # Track tx hash
-                        if "tx_hash" in tx:
-                            tx_hash = tx["tx_hash"]
-                            if isinstance(tx_hash, dict) and "tx_hash" in tx_hash:
-                                self.transaction_stats["unique_tx_hashes"].add(tx_hash["tx_hash"])
-                            elif isinstance(tx_hash, str):
-                                self.transaction_stats["unique_tx_hashes"].add(tx_hash)
+                    if not isinstance(tx, dict):
+                        continue
+                    hashes = tx.get("tx_hashes")
+                    if not isinstance(hashes, list):
+                        legacy = tx.get("tx_hash")
+                        if isinstance(legacy, dict) and "tx_hash" in legacy:
+                            legacy = legacy["tx_hash"]
+                        hashes = [legacy] if isinstance(legacy, str) else []
+                    hashes = [h for h in hashes if isinstance(h, str)]
+                    total_created += len(hashes)
+                    self.transaction_stats["unique_tx_hashes"].update(hashes)
 
-                        # Track transactions created per sender node
-                        if "sender_id" in tx:
-                            sender = tx["sender_id"]
-                            if sender not in self.transaction_stats["tx_created_by_node"]:
-                                self.transaction_stats["tx_created_by_node"][sender] = 0
-                            self.transaction_stats["tx_created_by_node"][sender] += 1
+                    # Track transactions created per sender node
+                    if "sender_id" in tx:
+                        sender = tx["sender_id"]
+                        if sender not in self.transaction_stats["tx_created_by_node"]:
+                            self.transaction_stats["tx_created_by_node"][sender] = 0
+                        self.transaction_stats["tx_created_by_node"][sender] += len(hashes) or 1
+
+                self.transaction_stats["total_created"] = total_created
 
                 self.logger.debug(f"Read {len(transactions)} transactions from shared state")
 

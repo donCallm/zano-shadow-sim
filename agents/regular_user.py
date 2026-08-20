@@ -463,15 +463,22 @@ class RegularUserAgent(BaseAgent):
         return other_agents
     
     def _record_transaction(self, tx_hash: str, recipient_id: str, amount: float):
-        """Record transaction in shared state"""
+        """Record one logical transfer as a single registry entry.
+
+        Schema (one entry per transfer, GitHub issues #6/#7):
+          tx_hashes    — ALL on-chain tx hashes of this transfer (a plain
+                         transfer() yields one; transfer_split yields several)
+          recipients   — list of {id, amount} destinations
+          total_amount — sum over recipients
+        """
         tx_record = {
-            'tx_hash': tx_hash,
+            'tx_hashes': [tx_hash],
             'sender_id': self.agent_id,
-            'recipient_id': recipient_id,
-            'amount': amount,
+            'recipients': [{'id': recipient_id, 'amount': amount}],
+            'total_amount': amount,
             'timestamp': time.time()
         }
-        
+
         self.append_shared_list('transactions.json', tx_record)
         
     def _cleanup_agent(self):

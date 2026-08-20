@@ -1281,23 +1281,30 @@ class MinerDistributorAgent(BaseAgent):
                 if num_splits > 1:
                     self.logger.info(f"Transaction was split into {num_splits} parts: {tx_hash_list}")
 
-                # Record transaction for each recipient (once per recipient, with total outputs)
+                # Record ONE registry entry for the whole batch: all split-part
+                # hashes (issue #7 — tx_hash_list[1:] used to be dropped) and
+                # all recipients as a list (issue #6 — was one entry per
+                # recipient, duplicating tx_hash).
                 funded_recipient_ids = []
                 seen_recipients = set()
+                recipients_meta = []
                 for recipient, recipient_address in valid_recipients:
                     recipient_id = recipient.get('id')
                     if recipient_id in seen_recipients or recipient_id in failed_recipients:
                         continue
                     seen_recipients.add(recipient_id)
                     funded_recipient_ids.append(recipient_id)
-                    self._record_transaction(
-                        tx_hash=tx_hash,
-                        sender_id=miner.get("agent_id"),
-                        recipient_id=recipient_id,
-                        amount=per_recipient_total,
-                        num_outputs=num_outputs_per_recipient,
-                        amount_per_output=per_output_amount
-                    )
+                    recipients_meta.append({
+                        'id': recipient_id,
+                        'amount': per_recipient_total,
+                        'num_outputs': num_outputs_per_recipient,
+                        'amount_per_output': per_output_amount,
+                    })
+                self._record_transaction(
+                    tx_hashes=tx_hash_list,
+                    sender_id=miner.get("agent_id"),
+                    recipients=recipients_meta,
+                )
 
                 self.logger.info(f"Batch transaction sent successfully: {tx_hash} "
                               f"({num_splits} split(s)) from {miner.get('agent_id')} to {len(funded_recipient_ids)} recipients "
@@ -1348,16 +1355,22 @@ class MinerDistributorAgent(BaseAgent):
         # Should not reach here, but return failure if we do
         return False, [], [r.get('id') for r in recipients]
 
-    def _record_transaction(self, tx_hash: str, sender_id: str, recipient_id: str, amount: float,
-                            num_outputs: int = 1, amount_per_output: Optional[float] = None):
-        """Record transaction in shared state"""
+    def _record_transaction(self, tx_hashes: List[str], sender_id: str,
+                            recipients: List[Dict[str, Any]]):
+        """Record one logical transfer as a single registry entry.
+
+        Schema (one entry per transfer, GitHub issues #6/#7): `tx_hashes`
+        carries EVERY on-chain hash returned by transfer_split — the wallet
+        decides autonomously when to split, and each part is a real chain
+        transaction that analysis must be able to attribute. Which recipient
+        landed in which split part is not reported by the wallet, so
+        recipients are recorded at the transfer level, not per part.
+        """
         tx_record = {
-            "tx_hash": tx_hash,
+            "tx_hashes": list(tx_hashes),
             "sender_id": sender_id,
-            "recipient_id": recipient_id,
-            "amount": amount,
-            "num_outputs": num_outputs,
-            "amount_per_output": amount_per_output if amount_per_output is not None else amount,
+            "recipients": recipients,
+            "total_amount": sum(r.get("amount", 0.0) for r in recipients),
             "timestamp": time.time()
         }
 

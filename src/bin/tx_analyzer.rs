@@ -1877,23 +1877,59 @@ fn load_transactions(shared_dir: &PathBuf) -> Result<Vec<Transaction>> {
     let mut skipped = 0;
 
     for value in values {
-        // Only accept entries where tx_hash is a string
-        if let Some(tx_hash) = value.get("tx_hash").and_then(|v| v.as_str()) {
-            let sender_id = value
-                .get("sender_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+        let sender_id = value
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let timestamp = value
+            .get("timestamp")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+
+        if let Some(hashes) = value.get("tx_hashes").and_then(|v| v.as_array()) {
+            // Current schema (issues #6/#7): one entry per logical transfer,
+            // `tx_hashes` = every on-chain tx (transfer_split parts included),
+            // `recipients` = [{id, amount}, ...]. Flatten to one Transaction
+            // per on-chain hash: split-part→recipient attribution is not
+            // reported by the wallet, so each part carries the joined
+            // recipient ids and the transfer's total amount.
+            let recipient_id = value
+                .get("recipients")
+                .and_then(|v| v.as_array())
+                .map(|rs| {
+                    rs.iter()
+                        .filter_map(|r| r.get("id").and_then(|v| v.as_str()))
+                        .collect::<Vec<_>>()
+                        .join("+")
+                })
+                .unwrap_or_default();
+            let amount = value
+                .get("total_amount")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            let mut any = false;
+            for h in hashes.iter().filter_map(|h| h.as_str()) {
+                any = true;
+                transactions.push(Transaction {
+                    tx_hash: h.to_string(),
+                    sender_id: sender_id.clone(),
+                    recipient_id: recipient_id.clone(),
+                    amount,
+                    timestamp,
+                });
+            }
+            if !any {
+                skipped += 1;
+            }
+        } else if let Some(tx_hash) = value.get("tx_hash").and_then(|v| v.as_str()) {
+            // Legacy schema: one entry per (tx, recipient) pair.
             let recipient_id = value
                 .get("recipient_id")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
             let amount = value.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0);
-            let timestamp = value
-                .get("timestamp")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0);
 
             transactions.push(Transaction {
                 tx_hash: tx_hash.to_string(),
