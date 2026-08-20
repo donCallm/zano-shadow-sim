@@ -32,6 +32,7 @@ class ParsedRequest:
     spy_nodes: Optional[int] = None
     duration_hours: Optional[float] = None
     is_upgrade: bool = False
+    is_hardfork: bool = False
     has_late_joiners: bool = False
 
 
@@ -95,6 +96,15 @@ def parse_user_request(request: str) -> ParsedRequest:
     # Check for upgrade scenario
     upgrade_keywords = ['upgrade', 'v1', 'v2', 'transition', 'migrate']
     parsed.is_upgrade = any(kw in request_lower for kw in upgrade_keywords)
+
+    # Hard fork (consensus upgrade) is a DIFFERENT scenario from a binary-swap
+    # upgrade: no daemon phases, monerod-hf everywhere, fakechain-hard-forks
+    # schedule. "upgrades from v14 to v15" would otherwise trip is_upgrade
+    # (both 'upgrade' and the 'v1' substring of 'v14'), so hard fork wins.
+    parsed.is_hardfork = bool(re.search(
+        r'hard.?fork|consensus upgrade|network upgrade|fork (at|height)', request_lower))
+    if parsed.is_hardfork:
+        parsed.is_upgrade = False
 
     # Check for late-joining nodes
     late_keywords = ['join', 'later', 'halfway', 'after', 'new.*come', 'additional']
@@ -626,9 +636,19 @@ class ConfigGenerator:
             if report.stop_time_s < expected_seconds * 0.9:  # Allow 10% tolerance
                 issues.append(f"Duration is {report.stop_time_s/3600:.1f}h but expected ~{expected.duration_hours}h")
 
-        # Check upgrade scenario
-        if expected.is_upgrade and not report.upgrade.enabled:
+        # Check upgrade scenario (binary swap; NOT for hard forks, which use
+        # a schedule knob instead of phases)
+        if expected.is_upgrade and not expected.is_hardfork and not report.upgrade.enabled:
             issues.append("Request mentions upgrade but config has no daemon phases (v1->v2 transition)")
+
+        # Check hard fork scenario: the schedule must actually be present
+        if expected.is_hardfork and not report.has_hardfork_schedule:
+            issues.append(
+                "Request asks for a HARD FORK but general.daemon_defaults has no "
+                "fakechain-hard-forks schedule. Use the hard fork recipe: the schedule "
+                'knob in daemon_defaults ("1:0,14:1,15:H"), daemon: monerod-hf on every '
+                "agent, monero-seed-{001..006} declared, non-upgrading agents via "
+                "daemon_options — and NO daemon phases")
 
         # Check upgrade scenario timing (hard failure for gap violations)
         if report.upgrade.enabled:

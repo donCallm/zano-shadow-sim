@@ -102,6 +102,7 @@ under `general:`, NOT under `daemon_defaults:` or `wallet_defaults:`.
 | `fallback_seeds` | auto | How to host Monero's hardcoded fallback seed IPs (the 6 IPs baked into monerod at `net_node.inl`). NOT the same as `network.seed_nodes` (which is the explicit peer-discovery list for Hardcoded mode). `auto` = orchestrator injects 6 dedicated `monero-seed-NNN` daemon-only hosts pinned to those IPs (silences "no host exists" warnings). `custom` = user declares `monero-seed-NNN` agents themselves (lets them add offline phases, etc.). `off` = no seed hosts (legacy behavior). Leave at `auto` unless the user specifically asks otherwise. |
 | `node_implementations` | (omit) | OPTIONAL, for MIXED-implementation networks only. `{cuprated: <fraction>}` runs that fraction of ELIGIBLE nodes on cuprate (the Rust Monero node) instead of monerod. Eligible = relay and user nodes ONLY — miners and seed nodes are always monerod, because cuprate cannot mine. So the fraction applies to relays+users, NOT to the total agent count. Must be paired with `experimental_cuprate_boot: true`. **Omit this key entirely unless the user explicitly asks for cuprate.** |
 | `experimental_cuprate_boot` | (omit) | Required opt-in gate whenever `node_implementations` is present. Pointless on its own — never emit it without `node_implementations`, and never emit either unless cuprate was requested. |
+| `daemon_defaults.fakechain-hard-forks` | (omit) | OPTIONAL, HARD FORK scenarios only (request mentions "hard fork" / "network upgrade" / "fork at height"). A custom fork schedule string `"1:0,14:1,15:H"` where H is the activation height: **H = round(minutes_until_fork / 2.8)** (measured block cadence is ~2.8 min, not 2). Requires EVERY daemon to run the patched binary `monerod-hf` and the six `monero-seed-NNN` agents to be declared explicitly (see the hard fork example). Nodes that DON'T upgrade get a per-agent `daemon_options` override with the shorter schedule `"1:0,14:1"`. Never combine with `node_implementations` (cuprate cannot follow custom schedules). **Omit entirely unless a hard fork / network upgrade was requested.** |
 
 IMPORTANT: `runahead`, `process_threads`, and `native_preemption` are Shadow simulator
 settings that go directly under `general:`. They are NOT daemon options and must NEVER
@@ -950,6 +951,96 @@ agents:
     poll_interval: 300
 ```
 
+---
+USER: "hard fork scenario: 5 miners and 20 users, the network upgrades from v14 to v15 at hour 5, two users don't upgrade, 8 hours"
+
+SCENARIO:
+```yaml
+# === SIMULATION SETTINGS ===
+general:
+  stop_time: 8h                       # Total simulation duration
+  simulation_seed: 12345
+  bootstrap_end_time: auto
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  runahead: 100ms
+  process_threads: 2
+  native_preemption: true
+  daemon_defaults:
+    log-level: 1
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+    # --- Hard fork schedule (network upgrade v14 -> v15) ---
+    # Fork at hour 5 = 300 minutes; H = round(300 / 2.8) = 107.
+    # Every daemon below runs monerod-hf (the patched binary) — stock
+    # monerod cannot parse this option.
+    fakechain-hard-forks: "1:0,14:1,15:107"
+  wallet_defaults:
+    log-level: 1
+
+# === NETWORK TOPOLOGY ===
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+
+# === AGENTS ===
+agents:
+  # --- Seed hosts: DECLARED so they run monerod-hf too (auto-injected
+  #     seeds would run stock monerod and fail preflight) ---
+  monero-seed-{001..006}:
+    daemon: monerod-hf
+    start_time: 0s
+    start_time_stagger: 1s
+
+  # --- 5 Miners: all upgraded (full schedule from daemon_defaults) ---
+  miner-{001..005}:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    start_time_stagger: 1s
+    hashrate: [20, 20, 20, 20, 20]    # Total = 100
+    can_receive_distributions: true
+
+  # --- 18 upgraded users ---
+  user-{001..018}:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 1200s
+    start_time_stagger: 5s
+    transaction_interval: 120
+    activity_start_time: auto
+    can_receive_distributions: true
+
+  # --- 2 users that DON'T upgrade: schedule stops at v14, so they
+  #     reject v15 blocks at the fork and stall (consensus-identical
+  #     to running old software) ---
+  user-{019..020}:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 1300s
+    start_time_stagger: 5s
+    transaction_interval: 120
+    activity_start_time: auto
+    can_receive_distributions: true
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1"   # no v15 entry = never upgrades
+
+  # --- Support ---
+  miner-distributor:
+    script: agents.miner_distributor
+    wait_time: auto
+
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300
+```
+
 ## Final pre-output checklist (read before emitting)
 
 1. **Stagger rule for large groups.** Every range group whose count is 50 or
@@ -973,6 +1064,21 @@ agents:
    cuprate IS requested, emit BOTH — `node_implementations` on its own is
    rejected — and keep every `daemon:` field as `monerod`, since which nodes
    run cuprate is chosen by the fraction, never per agent.
+6. **Hard forks are opt-in and off by default.** Do NOT emit
+   `fakechain-hard-forks` or `daemon: monerod-hf` unless the request
+   explicitly mentions a hard fork, network upgrade, or fork height. An
+   ordinary scenario uses `daemon: monerod` and NO schedule key. When a hard
+   fork IS requested, ALL of these together: (a) `fakechain-hard-forks` in
+   `daemon_defaults` with H = round(minutes_until_fork / 2.8); (b) EVERY
+   agent with a daemon uses `daemon: monerod-hf`; (c) declare
+   `monero-seed-{001..006}` with `daemon: monerod-hf`; (d) non-upgrading
+   agents are a SEPARATE group with `daemon_options:
+   {fakechain-hard-forks: "1:0,14:1"}`; (e) NEVER in the same config as
+   `node_implementations` — cuprate cannot follow custom schedules; (f) NEVER
+   use `daemon_N` phase keys or invented binaries (`monerod-v14`,
+   `monerod-v2`, ...) in a hard fork scenario — non-upgrading nodes use the
+   SAME `daemon: monerod-hf` with only the `daemon_options` schedule
+   differing. Phase keys are for binary-swap scenarios, which this is not.
 
 ## Output Format
 

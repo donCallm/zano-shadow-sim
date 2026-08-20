@@ -584,6 +584,40 @@ preflight_checks() {
         fi
     fi
 
+    # monerod-hf: conditional capability gate, same philosophy as the cuprate
+    # gate above — only fires when the config looks like a hard fork scenario
+    # (names monerod-hf or sets fakechain-hard-forks), so a stale or absent
+    # monerod-hf never blocks an ordinary run. The --help probe is the real
+    # check: a vanilla rebuild copied over monerod-hf would print the SAME
+    # version string, but cannot know the flag.
+    # Dev override: MONEROSIM_SKIP_HARDFORK_CHECK=1 ./run_sim.sh ...
+    local hf_bin="$HOME/.monerosim/bin/monerod-hf"
+    if [[ "${MONEROSIM_SKIP_HARDFORK_CHECK:-0}" == "1" ]]; then
+        log_warn "MONEROSIM_SKIP_HARDFORK_CHECK=1 — skipping monerod-hf check"
+    elif grep -qE 'monerod-hf|fakechain-hard-forks' "$CONFIG" 2>/dev/null; then
+        if [[ ! -x "$hf_bin" ]]; then
+            log_err "Config uses a hard fork schedule but no monerod-hf at $hf_bin"
+            log_info "Build it: ./setup.sh --hardfork"
+            exit 1
+        fi
+        if [[ -f "$SCRIPT_DIR/monero.pin" ]]; then
+            local hf_ver hf_pin
+            hf_pin=$(tr -d '[:space:]' < "$SCRIPT_DIR/monero.pin")
+            hf_ver=$("$hf_bin" --version 2>&1 | head -n1)
+            if [[ "$hf_ver" != *"${hf_pin}"* ]]; then
+                log_err "monerod-hf is built from '$hf_ver', not pinned $hf_pin"
+                log_info "Fix: ./update.sh --hardfork --rebuild"
+                exit 1
+            fi
+        fi
+        if ! "$hf_bin" --help 2>/dev/null | grep -q 'fakechain-hard-forks'; then
+            log_err "monerod-hf does not carry the hard fork schedule patch (vanilla binary?)"
+            log_info "Fix: ./setup.sh --hardfork"
+            exit 1
+        fi
+        log_ok "monerod-hf matches pin and carries --fakechain-hard-forks"
+    fi
+
     # Parse stop_time from config
     STOP_TIME_RAW=$(python3 scripts/run_sim_helpers.py extract-stop-time "$CONFIG" 2>/dev/null)
 

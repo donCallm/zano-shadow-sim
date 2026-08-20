@@ -93,12 +93,23 @@ python3 -m scripts.ai_config --model your-model-name
 **Mixed monerod + cuprate network:**
 > "300 node network, half the relays running cuprate instead of monerod, 8 hours"
 
+**Hard fork / network upgrade:**
+> "hard fork scenario: 5 miners and 20 users, the network upgrades from v14 to v15 at hour 5, two users don't upgrade, 8 hours"
+
 Ask for cuprate explicitly (mention "cuprate" or "mixed network") — the generator leaves
 it out otherwise. It emits `general.node_implementations` plus the required
 `experimental_cuprate_boot` gate, and leaves every `daemon:` field as `monerod`, since which
 nodes run cuprate is chosen by the fraction rather than per agent. The fraction applies to
 *eligible* nodes only — relays and users, never miners or seeds. Needs `cuprated` installed
 (`./setup.sh --cuprate`); see [Cuprate Integration](CUPRATE_INTEGRATION.md).
+
+Hard forks are likewise opt-in (mention "hard fork" or "network upgrade"). The generator
+then emits the full recipe: `fakechain-hard-forks` in `daemon_defaults` with the fork
+height computed from the measured ~2.8 min block cadence, `daemon: monerod-hf` on every
+daemon, the six seed hosts declared explicitly, and a separate agent group with the short
+schedule for whoever doesn't upgrade. Needs `monerod-hf` installed (`./setup.sh
+--hardfork`); see [Hard Fork Testing](HARDFORK_TESTING.md). Hard fork and cuprate cannot
+be combined in one config.
 
 ## How It Works
 

@@ -136,6 +136,9 @@ class ValidationReport:
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
+    # Hard fork scenario: general.daemon_defaults carries fakechain-hard-forks
+    has_hardfork_schedule: bool = False
+
     # General settings
     stop_time_s: int = 0
     bootstrap_end_time_s: int = 0
@@ -396,6 +399,63 @@ class ConfigValidator:
 
         if report.total_hashrate != 100 and report.miner_count > 0:
             report.warnings.append(f"Total hashrate is {report.total_hashrate}, not 100")
+
+        # Hard fork consistency — mirrors the orchestrator's preflight guards
+        # so the LLM correction loop can fix these deterministically instead
+        # of failing later at generation time.
+        hf_default = (general.get('daemon_defaults') or {}).get('fakechain-hard-forks')
+        report.has_hardfork_schedule = bool(hf_default)
+
+        def _agent_hf(cfg):
+            return (cfg.get('daemon_options') or {}).get('fakechain-hard-forks')
+
+        agent_cfgs = {a: c for a, c in agents.items() if isinstance(c, dict)}
+        hf_anywhere = bool(hf_default) or any(_agent_hf(c) for c in agent_cfgs.values())
+        uses_hf_binary = any(
+            c.get('daemon') == 'monerod-hf'
+            or any(re.fullmatch(r'daemon_\d+', str(k)) and v == 'monerod-hf'
+                   for k, v in c.items())
+            for c in agent_cfgs.values()
+        )
+        if hf_anywhere or uses_hf_binary:
+            hf_errors = []
+            if not hf_default:
+                hf_errors.append(
+                    "Hard fork config must set fakechain-hard-forks in "
+                    'general.daemon_defaults (e.g. "1:0,14:1,15:107")')
+            for aid, cfg in agent_cfgs.items():
+                daemon = cfg.get('daemon')
+                if daemon and daemon != 'monerod-hf':
+                    hf_errors.append(
+                        f"Agent '{aid}': hard fork configs must use daemon: monerod-hf "
+                        f"(found '{daemon}') — stock monerod cannot parse the schedule knob")
+                phase_keys = [k for k in cfg if re.fullmatch(r'daemon_\d+', str(k))]
+                if phase_keys:
+                    hf_errors.append(
+                        f"Agent '{aid}': do not combine daemon phases ('{phase_keys[0]}') with "
+                        "a hard fork schedule. Non-upgrading nodes differ ONLY by "
+                        'daemon_options: {fakechain-hard-forks: "1:0,14:1"} — same '
+                        "monerod-hf binary, plain daemon: key, no phases")
+            missing_seeds = [f"monero-seed-{n:03d}" for n in range(1, 7)
+                             if f"monero-seed-{n:03d}" not in agent_cfgs]
+            if missing_seeds:
+                hf_errors.append(
+                    f"Hard fork configs must declare {', '.join(missing_seeds)} with "
+                    "daemon: monerod-hf and start_time (auto-injected seeds run stock "
+                    "monerod and fail preflight)")
+            if 'node_implementations' in general:
+                hf_errors.append(
+                    "Hard fork schedules cannot be combined with node_implementations "
+                    "(cuprate cannot follow custom schedules) — remove one of them")
+            for label, sched in ([('general.daemon_defaults', hf_default)]
+                                 + [(aid, _agent_hf(cfg)) for aid, cfg in agent_cfgs.items()]):
+                if sched and not re.fullmatch(r'1:0(,\d+:\d+)+', str(sched)):
+                    hf_errors.append(
+                        f"{label}: fakechain-hard-forks must be version:height pairs "
+                        f'starting 1:0, e.g. "1:0,14:1,15:107" (got \'{sched}\')')
+            if hf_errors:
+                report.is_valid = False
+                report.errors.extend(hf_errors)
 
         return report
 

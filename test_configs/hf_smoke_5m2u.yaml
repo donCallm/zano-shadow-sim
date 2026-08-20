@@ -1,0 +1,136 @@
+# Hard fork validation gate — 5 miners + 2 users, 6h, fork at height 105.
+#
+# Network upgrade (v14 -> v15) with one node left behind: user-02's daemon
+# runs a schedule that stops at v14, consensus-identical to not upgrading the
+# software. All miners are upgraded, so this is the STALL variant: after the
+# fork the laggard freezes at top index 104 while the network moves on. (For a
+# chain SPLIT put one miner on the short schedule instead.)
+#
+# Timeline (block cadence MEASURED at ~2.8 min in this scenario — a 6h run
+# produces ~128 blocks, so height targets must use 2.8, not the nominal 2):
+#   0h        miners + seeds up, chain starts at v14 (schedule 1:0,14:1,15:105)
+#   40m       users' daemons+wallets up
+#   4h        bootstrap ends; users start transacting (v14-era txs: ring 11, BP)
+#   ~4h55m    height 105: miners switch to major_version 15
+#             - user-02 daemon rejects v15 blocks, stalls at top index 104;
+#               its wallet stops confirming
+#             - everyone else follows the fork; user-01 keeps transacting
+#               (v15-era txs: ring 16, BP+)
+#   6h        stop
+#
+# Pass criteria:
+#   - shadow exits 0; all daemons run to the end (user-02 STALLED, not crashed)
+#   - upgraded nodes agree on a tip well past 105 with major_version 15
+#   - user-02: summary height exactly 105 (top index 104); "has old version" + "Block
+#     verification failed" + ban lines in its log; hard_fork_info stayed v14
+#   - pre-fork: user-02 saw votes for v15 (miners' blocks carry minor_version
+#     15 from the start — the real-world "update needed" signal)
+#   - user-01 wallet successfully transacts both before AND after the fork
+#
+# Seeds are declared (not auto-injected) so the backbone runs monerod-hf on
+# the full schedule; preflight rejects fork configs whose daemons run stock
+# monerod, which cannot parse the schedule knob.
+general:
+  stop_time: 6h
+  simulation_seed: 12345
+  bootstrap_end_time: 4h
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  process_threads: 2
+  native_preemption: true
+  daemon_defaults:
+    log-level: monitor
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+    fakechain-hard-forks: "1:0,14:1,15:105"
+  wallet_defaults:
+    log-level: 1
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+agents:
+  monero-seed-001:
+    daemon: monerod-hf
+    start_time: 0s
+  monero-seed-002:
+    daemon: monerod-hf
+    start_time: 1s
+  monero-seed-003:
+    daemon: monerod-hf
+    start_time: 2s
+  monero-seed-004:
+    daemon: monerod-hf
+    start_time: 3s
+  monero-seed-005:
+    daemon: monerod-hf
+    start_time: 4s
+  monero-seed-006:
+    daemon: monerod-hf
+    start_time: 5s
+  miner-001:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-002:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 1s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-003:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 2s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-004:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 3s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-005:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 4s
+    hashrate: 20
+    can_receive_distributions: true
+  user-01:
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2400s
+    transaction_interval: 120
+    activity_start_time: 14400
+    can_receive_distributions: true
+  user-02:
+    # The laggard: consensus-identical to a node that never upgraded past
+    # v14. Its wallet keeps running against the stalled daemon — the "my
+    # wallet stopped confirming" experience. log-level raises net.cn so the
+    # handshake-refusal line is captured.
+    daemon: monerod-hf
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2410s
+    transaction_interval: 120
+    activity_start_time: 14520
+    can_receive_distributions: true
+    daemon_options:
+      fakechain-hard-forks: "1:0,14:1"
+      log-level: "1,net.cn:DEBUG"
+  miner-distributor:
+    script: agents.miner_distributor
+    wait_time: 4200
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300
