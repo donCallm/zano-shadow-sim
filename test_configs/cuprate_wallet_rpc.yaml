@@ -1,0 +1,149 @@
+# Cuprate wallet-RPC interop test.
+#
+# QUESTION: can a real monero-wallet-rpc sync (and send) through a cuprated
+# daemon's RPC? cuprate implements the wallet-critical methods (get_blocks.bin,
+# get_hashes.bin, get_o_indexes.bin, get_outs.bin, get_fee_estimate,
+# send_raw_transaction), but binary (.bin) responses must match monerod's
+# serialization byte-for-byte or wallet2 will reject them.
+#
+# DESIGN: two matched pairs of LIGHT wallets (no local daemon), differing only
+# in which daemon they point at:
+#   cupuser-*  -> a cuprated relay's RPC   (treatment)
+#   monuser-*  -> a monerod relay's RPC    (control)
+# The control isolates "remote RPC" as a variable, so any cupuser-only failure
+# is attributable to cuprate's RPC rather than to the light-wallet path itself.
+#
+# Miners stay monerod: cuprate's GenerateBlocks is a stub, so it cannot mine.
+general:
+  stop_time: 6h
+  simulation_seed: 12345
+  bootstrap_end_time: 4h
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  runahead: 100ms
+  process_threads: 0
+  native_preemption: true
+  experimental_cuprate_boot: true
+  node_implementations:
+    cuprated: 0.5
+  daemon_defaults:
+    log-level: 1
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+  wallet_defaults:
+    log-level: 1
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+agents:
+  miner-001:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-002:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 1s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-003:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 2s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-004:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 3s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-005:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 4s
+    hashrate: 20
+    can_receive_distributions: true
+
+  # Relay pool. node_implementations.cuprated=0.5 makes half of these cuprated;
+  # which half is deterministic for a fixed seed and is pinned below by the
+  # explicit daemon addresses (verified against the generated shadow config).
+  relay-001:
+    daemon: monerod
+    start_time: 5m
+  relay-002:
+    daemon: monerod
+    start_time: 5m
+  relay-003:
+    daemon: monerod
+    start_time: 5m
+  relay-004:
+    daemon: monerod
+    start_time: 5m
+  relay-005:
+    daemon: monerod
+    start_time: 5m
+  relay-006:
+    daemon: monerod
+    start_time: 5m
+
+  # --- TREATMENT: light wallets talking to a CUPRATED daemon ---
+  cupuser-01:
+    # relay-001 = cuprated (verified in generated shadow_agents.yaml)
+    daemon:
+      address: "181.0.0.10:18081"
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2400s
+    transaction_interval: 120
+    activity_start_time: 14400
+    can_receive_distributions: true
+  cupuser-02:
+    # relay-002 = cuprated
+    daemon:
+      address: "105.0.0.10:18081"
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2410s
+    transaction_interval: 120
+    activity_start_time: 14520
+    can_receive_distributions: true
+
+  # --- CONTROL: light wallets talking to a MONEROD daemon ---
+  monuser-01:
+    # relay-004 = monerod
+    daemon:
+      address: "7.0.0.10:18081"
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2420s
+    transaction_interval: 120
+    activity_start_time: 14400
+    can_receive_distributions: true
+  monuser-02:
+    # relay-005 = monerod
+    daemon:
+      address: "31.0.0.10:18081"
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2430s
+    transaction_interval: 120
+    activity_start_time: 14520
+    can_receive_distributions: true
+
+  miner-distributor:
+    script: agents.miner_distributor
+    wait_time: 4200
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300

@@ -2,6 +2,7 @@
 
 pub mod fallback_seeds;
 pub mod miner_distributor;
+pub mod node_impl;
 pub mod pure_scripts;
 pub mod simulation_monitor;
 pub mod user_agents;

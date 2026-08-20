@@ -543,6 +543,47 @@ preflight_checks() {
     fi
     log_ok "Config file: $CONFIG"
 
+    # Verify the installed cuprated matches this checkout's pinned cuprate
+    # commit (cuprate.pin). Unlike the monero/shadow checks this is CONDITIONAL:
+    # cuprate is optional, so a stale-or-absent cuprated must never block a
+    # monerod-only run. We gate on the config actually naming `cuprated:` under
+    # general.node_implementations.
+    #
+    # Worth failing loudly on: cuprate's config uses serde deny_unknown_fields,
+    # so a build predating e3a869d (PR #663) rejects the `seed_nodes` key we
+    # emit and dies at daemon start with an opaque parse error, 300 hosts at a
+    # time. See docs/20260802_cuprate_upstream_merge.md.
+    # Dev override: MONEROSIM_SKIP_CUPRATE_CHECK=1 ./run_sim.sh ...
+    local cuprated_bin="$HOME/.monerosim/bin/cuprated"
+    local cuprate_pin_file="$SCRIPT_DIR/cuprate.pin"
+    if [[ "${MONEROSIM_SKIP_CUPRATE_CHECK:-0}" == "1" ]]; then
+        log_warn "MONEROSIM_SKIP_CUPRATE_CHECK=1 — skipping cuprate version check"
+    elif grep -qE '^[[:space:]]*cuprated[[:space:]]*:' "$CONFIG" 2>/dev/null; then
+        if [[ ! -x "$cuprated_bin" ]]; then
+            log_err "Config places cuprate nodes but no cuprated binary at $cuprated_bin"
+            log_info "Build it: see cuprate.pin"
+            exit 1
+        elif [[ -f "$cuprate_pin_file" ]]; then
+            local cuprate_pin cuprate_commit
+            # first non-comment, non-blank line
+            cuprate_pin=$(grep -vE '^[[:space:]]*(#|$)' "$cuprate_pin_file" | head -n1 | tr -d '[:space:]')
+            cuprate_commit=$("$cuprated_bin" --version 2>/dev/null \
+                | python3 -c 'import sys,json; print(json.load(sys.stdin).get("commit",""))' 2>/dev/null)
+            if [[ -n "$cuprate_commit" && "$cuprate_commit" == "$cuprate_pin" ]]; then
+                log_ok "cuprate matches pin: ${cuprate_pin:0:12}"
+            else
+                log_err "Installed cuprated does not match this monerosim's pinned cuprate commit"
+                log_err "  installed: ${cuprate_commit:-<unreadable>}"
+                log_err "  pinned:    $cuprate_pin  (cuprate.pin)"
+                log_info "Fix: rebuild cuprated at the pinned commit — see cuprate.pin"
+                log_info "Dev override: MONEROSIM_SKIP_CUPRATE_CHECK=1"
+                exit 1
+            fi
+        else
+            log_warn "cuprate.pin missing — skipping cuprate version check"
+        fi
+    fi
+
     # Parse stop_time from config
     STOP_TIME_RAW=$(python3 scripts/run_sim_helpers.py extract-stop-time "$CONFIG" 2>/dev/null)
 
@@ -1386,7 +1427,7 @@ cleanup_tmp_monero() {
 }
 
 archive_daemon_logs() {
-    log_info "Archiving daemon logs (bitmonero.log)..."
+    log_info "Archiving daemon logs (monerod bitmonero.log + cuprate file logs)..."
 
     local logs_dir="$ARCHIVE_DIR/daemon_logs"
     mkdir -p "$logs_dir"
@@ -1406,12 +1447,26 @@ archive_daemon_logs() {
         count=$((count + 1))
     done
 
-    if [[ $count -gt 0 ]]; then
+    # cuprate nodes don't write bitmonero.log; their tracing file sink lands in
+    # <data_dir>/<network>/logs/ (see CupratedImpl [tracing.file]). Collect those
+    # into the same per-node daemon_logs/ dir so every node type is first-class.
+    local cup_count=0
+    for cup_log in "$DAEMON_DATA_BASE"/monero-*/*/logs/*; do
+        [[ -f "$cup_log" ]] || continue
+        local cup_node_dir cup_node_name
+        cup_node_dir=$(dirname "$(dirname "$(dirname "$cup_log")")")
+        cup_node_name=$(basename "$cup_node_dir")
+        mkdir -p "$logs_dir/$cup_node_name"
+        mv "$cup_log" "$logs_dir/$cup_node_name/"
+        cup_count=$((cup_count + 1))
+    done
+
+    if [[ $((count + cup_count)) -gt 0 ]]; then
         local total_size
         total_size=$(du -sh "$logs_dir" 2>/dev/null | cut -f1)
-        log_ok "Daemon logs: $count bitmonero.log files archived ($total_size total)"
+        log_ok "Daemon logs: $count monerod (bitmonero.log) + $cup_count cuprate log file(s) archived ($total_size total)"
     else
-        log_warn "No bitmonero.log files found in $DAEMON_DATA_BASE/monero-*/"
+        log_warn "No daemon logs found in $DAEMON_DATA_BASE/monero-*/"
     fi
     # NOTE: the daemon data dirs themselves (blockchain DBs, config, lock
     # files — tens of GB on a 1000-node sim) are cleaned by the

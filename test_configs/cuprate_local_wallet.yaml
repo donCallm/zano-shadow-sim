@@ -1,0 +1,139 @@
+# Cuprate CO-LOCATED wallet test.
+#
+# Companion to cuprate_wallet_rpc.yaml. That one proved a REMOTE light wallet
+# (no local daemon) can sync+send through a cuprated node's RPC. This one tests
+# the configuration that change newly permits: a user agent whose OWN LOCAL
+# daemon is cuprated, with monero-wallet-rpc pointed at localhost.
+#
+# The extra risk here is not wallet RPC (already proven) but the agent-side
+# daemon RPC: user scripts and simulation-monitor may call methods cuprate
+# stubs (get_connections, sync_info, get_block_template). If those are on a
+# hot path, a co-located cuprate user will misbehave where a remote one didn't.
+#
+# Miners stay monerod: cuprate's GenerateBlocks is a stub.
+general:
+  stop_time: 6h
+  simulation_seed: 12345
+  bootstrap_end_time: 4h
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  runahead: 100ms
+  process_threads: 0
+  native_preemption: true
+  experimental_cuprate_boot: true
+  node_implementations:
+    cuprated: 0.5
+  daemon_defaults:
+    log-level: 1
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+  wallet_defaults:
+    log-level: 1
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+agents:
+  miner-001:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-002:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 1s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-003:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 2s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-004:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 3s
+    hashrate: 20
+    can_receive_distributions: true
+  miner-005:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 4s
+    hashrate: 20
+    can_receive_distributions: true
+
+  # Wallet-bearing users, each with a LOCAL daemon. Half of the eligible pool
+  # (these 6 users + 2 relays) becomes cuprated; which half is seeded-hash
+  # deterministic and is reported by the generator.
+  user-01:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2400s
+    transaction_interval: 120
+    activity_start_time: 14400
+    can_receive_distributions: true
+  user-02:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2410s
+    transaction_interval: 120
+    activity_start_time: 14400
+    can_receive_distributions: true
+  user-03:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2420s
+    transaction_interval: 120
+    activity_start_time: 14520
+    can_receive_distributions: true
+  user-04:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2430s
+    transaction_interval: 120
+    activity_start_time: 14520
+    can_receive_distributions: true
+  user-05:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2440s
+    transaction_interval: 120
+    activity_start_time: 14640
+    can_receive_distributions: true
+  user-06:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 2450s
+    transaction_interval: 120
+    activity_start_time: 14640
+    can_receive_distributions: true
+
+  relay-001:
+    daemon: monerod
+    start_time: 5m
+  relay-002:
+    daemon: monerod
+    start_time: 5m
+
+  miner-distributor:
+    script: agents.miner_distributor
+    wait_time: 4200
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300

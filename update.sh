@@ -35,6 +35,7 @@ UPDATE_ALL=false
 REBUILD=false
 UPDATE_SHADOW=false
 UPDATE_MONERO=false
+UPDATE_CUPRATE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -54,6 +55,10 @@ while [[ $# -gt 0 ]]; do
             UPDATE_MONERO=true
             shift
             ;;
+        --cuprate)
+            UPDATE_CUPRATE=true
+            shift
+            ;;
         -h|--help)
             echo "Update script for monerosim and sister repositories"
             echo ""
@@ -64,6 +69,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --rebuild       Rebuild binaries after updating"
             echo "  --shadow        Update shadowformonero only"
             echo "  --monero        Update monero only"
+            echo "  --cuprate       Update cuprate only (optional dep; skipped if not installed)"
             echo "  -h, --help      Show this help message"
             echo ""
             echo "Examples:"
@@ -74,6 +80,8 @@ while [[ $# -gt 0 ]]; do
             echo "Dependency repositories (in sibling_repos/):"
             echo "  monero            - Official Monero (branch: master)"
             echo "  shadowformonero   - Shadow simulator (branch: main)"
+            echo "  cuprate           - Rust Monero node, OPTIONAL (pinned by cuprate.pin)"
+            echo "                      Install with ./setup.sh --cuprate"
             exit 0
             ;;
         *)
@@ -308,6 +316,18 @@ rebuild_shadow() {
     cd "$SCRIPT_DIR"
 }
 
+rebuild_cuprate() {
+    local cuprate_dir="$1"
+    log_info "Rebuilding cuprated (this takes a while)..."
+    if (cd "$cuprate_dir" && cargo build --release -p cuprated -j "$BUILD_JOBS"); then
+        cp -f "$cuprate_dir/target/release/cuprated" "$MONEROSIM_BIN/cuprated"
+        log_ok "cuprated rebuilt and installed to $MONEROSIM_BIN/cuprated"
+    else
+        log_err "cuprated build failed"
+    fi
+    cd "$SCRIPT_DIR"
+}
+
 # Main logic
 echo -e "${BLUE}================================${NC}"
 echo -e "${BLUE}MoneroSim Update Script${NC}"
@@ -318,6 +338,7 @@ echo ""
 MONEROSIM_UPDATED=false
 MONERO_UPDATED=false
 SHADOW_UPDATED=false
+CUPRATE_UPDATED=false
 
 # Always update monerosim
 IFS=':' read -r path branch <<< "${REPOS[monerosim]}"
@@ -358,6 +379,39 @@ if [[ "$UPDATE_ALL" == "true" ]] || [[ "$UPDATE_MONERO" == "true" ]]; then
     fi
 fi
 
+if [[ "$UPDATE_ALL" == "true" ]] || [[ "$UPDATE_CUPRATE" == "true" ]]; then
+    # Pinned checkout, mirroring monero above. cuprate is OPTIONAL, so a missing
+    # checkout is a skip and never an error — most setups never install it.
+    cuprate_path="${CUPRATE_DIR:-$DEPS_DIR/cuprate}"
+    CUPRATE_REF=""
+    if [[ -f "$SCRIPT_DIR/cuprate.pin" ]]; then
+        CUPRATE_REF=$(grep -vE '^[[:space:]]*(#|$)' "$SCRIPT_DIR/cuprate.pin" | head -n1 | tr -d '[:space:]')
+    fi
+    if [[ -z "$CUPRATE_REF" ]]; then
+        log_warn "cuprate.pin missing or empty - skipping cuprate update"
+    elif [[ -d "$cuprate_path/.git" ]]; then
+        log_info "Updating cuprate (pinned to $CUPRATE_REF)..."
+        cd "$cuprate_path"
+        if ! git diff --quiet || ! git diff --cached --quiet; then
+            log_warn "cuprate has uncommitted changes; skipping cuprate update"
+        else
+            cuprate_before=$(git rev-parse HEAD)
+            # --all: a reused checkout may carry a fork on `origin` with the
+            # canonical repo on `upstream`.
+            git fetch --all --tags --force
+            if git checkout "$CUPRATE_REF"; then
+                [[ "$(git rev-parse HEAD)" != "$cuprate_before" ]] && CUPRATE_UPDATED=true
+                log_ok "cuprate at $CUPRATE_REF"
+            else
+                log_warn "Could not checkout cuprate $CUPRATE_REF (see cuprate.pin)"
+            fi
+        fi
+        cd "$SCRIPT_DIR"
+    else
+        log_warn "cuprate not found at $cuprate_path - skipping (install with ./setup.sh --cuprate)"
+    fi
+fi
+
 # Rebuild if requested or if there were updates
 echo ""
 if [[ "$REBUILD" == "true" ]]; then
@@ -376,7 +430,14 @@ if [[ "$REBUILD" == "true" ]]; then
             rebuild_monero "$DEPS_DIR/monero" "monero"
         fi
     fi
-elif [[ "$MONEROSIM_UPDATED" == "true" ]] || [[ "$SHADOW_UPDATED" == "true" ]] || [[ "$MONERO_UPDATED" == "true" ]]; then
+
+    if [[ "$CUPRATE_UPDATED" == "true" ]] || [[ "$UPDATE_CUPRATE" == "true" ]]; then
+        cuprate_rebuild_path="${CUPRATE_DIR:-$DEPS_DIR/cuprate}"
+        if [[ -d "$cuprate_rebuild_path/.git" ]]; then
+            rebuild_cuprate "$cuprate_rebuild_path"
+        fi
+    fi
+elif [[ "$MONEROSIM_UPDATED" == "true" ]] || [[ "$SHADOW_UPDATED" == "true" ]] || [[ "$MONERO_UPDATED" == "true" ]] || [[ "$CUPRATE_UPDATED" == "true" ]]; then
     echo ""
     log_warn "Some repositories were updated. Consider running with --rebuild to update binaries."
 fi

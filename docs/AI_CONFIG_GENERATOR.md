@@ -90,6 +90,16 @@ python3 -m scripts.ai_config --model your-model-name
 **Late-joining miners:**
 > "5 miners at start (30,25,25,10,10 hashrate). 20 users at 30min. At 3 hours, 10 new miners join with hashrate 20 each using monerod-v2. 8 hours total."
 
+**Mixed monerod + cuprate network:**
+> "300 node network, half the relays running cuprate instead of monerod, 8 hours"
+
+Ask for cuprate explicitly (mention "cuprate" or "mixed network") — the generator leaves
+it out otherwise. It emits `general.node_implementations` plus the required
+`experimental_cuprate_boot` gate, and leaves every `daemon:` field as `monerod`, since which
+nodes run cuprate is chosen by the fraction rather than per agent. The fraction applies to
+*eligible* nodes only — relays and users, never miners or seeds. Needs `cuprated` installed
+(`./setup.sh --cuprate`); see [Cuprate Integration](CUPRATE_INTEGRATION.md).
+
 ## How It Works
 
 1. **LLM generates Python script** - Creates code that builds the YAML config

@@ -100,6 +100,8 @@ under `general:`, NOT under `daemon_defaults:` or `wallet_defaults:`.
 | `process_threads` | 2 | Threads per simulated process. 0 = use program defaults (monerod uses all cores, non-deterministic). 1 = deterministic but slow. 2 = good balance |
 | `native_preemption` | false | Enable Shadow native preemption. Improves wall-time performance |
 | `fallback_seeds` | auto | How to host Monero's hardcoded fallback seed IPs (the 6 IPs baked into monerod at `net_node.inl`). NOT the same as `network.seed_nodes` (which is the explicit peer-discovery list for Hardcoded mode). `auto` = orchestrator injects 6 dedicated `monero-seed-NNN` daemon-only hosts pinned to those IPs (silences "no host exists" warnings). `custom` = user declares `monero-seed-NNN` agents themselves (lets them add offline phases, etc.). `off` = no seed hosts (legacy behavior). Leave at `auto` unless the user specifically asks otherwise. |
+| `node_implementations` | (omit) | OPTIONAL, for MIXED-implementation networks only. `{cuprated: <fraction>}` runs that fraction of ELIGIBLE nodes on cuprate (the Rust Monero node) instead of monerod. Eligible = relay and user nodes ONLY — miners and seed nodes are always monerod, because cuprate cannot mine. So the fraction applies to relays+users, NOT to the total agent count. Must be paired with `experimental_cuprate_boot: true`. **Omit this key entirely unless the user explicitly asks for cuprate.** |
+| `experimental_cuprate_boot` | (omit) | Required opt-in gate whenever `node_implementations` is present. Pointless on its own — never emit it without `node_implementations`, and never emit either unless cuprate was requested. |
 
 IMPORTANT: `runahead`, `process_threads`, and `native_preemption` are Shadow simulator
 settings that go directly under `general:`. They are NOT daemon options and must NEVER
@@ -870,6 +872,84 @@ agents:
     poll_interval: 300
 ```
 
+---
+USER: "300 nodes, half of them running cuprate instead of monerod, 8 hours"
+
+SCENARIO:
+```yaml
+# === SIMULATION SETTINGS ===
+general:
+  stop_time: 8h                       # Total simulation duration
+  simulation_seed: 12345
+  bootstrap_end_time: auto
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  runahead: 100ms
+  process_threads: 2
+  native_preemption: true             # Helps wall-time at this scale
+  # --- Mixed-implementation network ---
+  # The fraction applies to ELIGIBLE nodes only (relays + users).
+  # Miners and seed nodes always stay monerod: cuprate cannot mine.
+  node_implementations:
+    cuprated: 0.5                     # ~half of relays+users run cuprate
+  experimental_cuprate_boot: true     # Required whenever node_implementations is set
+  daemon_defaults:
+    log-level: 1
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+  wallet_defaults:
+    log-level: 1
+
+# === NETWORK TOPOLOGY ===
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+
+# === AGENTS ===
+# NOTE: every daemon: field stays `monerod`. Which nodes actually run cuprate
+# is decided by the node_implementations fraction above, never per agent.
+agents:
+  # --- 5 Miners: always monerod (cuprate has no mining support) ---
+  miner-{001..005}:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    start_time_stagger: 1s
+    hashrate: [20, 20, 20, 20, 20]    # Total = 100
+    can_receive_distributions: true
+
+  # --- 50 Users: eligible for cuprate; cuprate can back a wallet ---
+  user-{001..050}:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.regular_user
+    start_time: 1200s
+    start_time_stagger: auto          # 50+ agents: batched spawning
+    transaction_interval: 60
+    activity_start_time: auto
+    can_receive_distributions: true
+
+  # --- 245 Relays: daemon-only, eligible for cuprate ---
+  relay-{001..245}:
+    daemon: monerod
+    script: agents.pure_relay
+    start_time: 600s
+    start_time_stagger: auto
+
+  # --- Support ---
+  miner-distributor:
+    script: agents.miner_distributor
+    wait_time: auto
+
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300
+```
+
 ## Final pre-output checklist (read before emitting)
 
 1. **Stagger rule for large groups.** Every range group whose count is 50 or
@@ -886,6 +966,13 @@ agents:
 4. **Don't truncate keys.** Every key on its own line must have a `:` and a
    value. `start_time_st` alone on a line is malformed YAML and will be
    rejected.
+5. **Cuprate is opt-in and off by default.** Do NOT emit
+   `node_implementations` or `experimental_cuprate_boot` unless the request
+   explicitly mentions cuprate, cuprated, or a mixed / multi-implementation
+   network. An ordinary monerod scenario must contain NEITHER key. When
+   cuprate IS requested, emit BOTH — `node_implementations` on its own is
+   rejected — and keep every `daemon:` field as `monerod`, since which nodes
+   run cuprate is chosen by the fraction, never per agent.
 
 ## Output Format
 

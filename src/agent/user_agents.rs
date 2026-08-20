@@ -19,8 +19,8 @@ use crate::topology::{
 };
 use crate::utils::binary::resolve_binary_path_for_shadow;
 use crate::utils::duration::parse_duration_to_seconds;
-use crate::utils::options::{merge_options, options_to_args, translate_daemon_log_level};
-use std::collections::{BTreeMap, HashSet};
+use crate::utils::options::{merge_options, translate_daemon_log_level};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 /// Context bundle for `process_user_agents`.
@@ -55,6 +55,13 @@ pub struct UserAgentProcessContext<'a> {
     pub reachable_by_role: Option<&'a BTreeMap<String, f64>>,
     /// Global fraction of non-seed nodes that run `--hide-my-port` (0.0 = none).
     pub hidden_fraction: f64,
+    /// Node-implementation selection: maps an implementation id (e.g.
+    /// `"cuprated"`) to the fraction of eligible relay nodes that run it. Empty
+    /// => every node runs monerod (generated output unchanged).
+    pub node_implementations: &'a BTreeMap<String, f64>,
+    /// Opt into placing cuprate nodes before their P3b seed override (they boot
+    /// but find no peers) — boot-testing only; otherwise cuprate is rejected.
+    pub experimental_cuprate_boot: bool,
     /// Simulation stop time in seconds — bounds turnover session generation.
     pub simulation_stop_secs: u64,
     /// Peer-turnover config (None = no turnover; relays stay always-on).
@@ -84,6 +91,70 @@ fn is_pinned_reachable(cfg: &AgentConfig) -> bool {
         .as_ref()
         .and_then(|o| o.get("hide-my-port"))
         .map_or(false, |v| matches!(v, OptionValue::Bool(false)))
+}
+
+/// Assign a node implementation to eligible daemon agents by seeded hash.
+///
+/// Eligible = non-seed, non-miner, phase-less daemon nodes. Wallet-bearing user
+/// nodes ARE eligible: cuprate backing a real monero-wallet-rpc (sync + send) is
+/// runtime-proven — see docs/20260724_cuprate_wallet_rpc.md. MINERS still stay
+/// monerod (cuprate's GenerateBlocks is a stub), so a capability mismatch can't
+/// arise. `fractions` maps impl_id -> fraction of the
+/// eligible pool; entries are applied in id order over a seeded-hash ordering of
+/// the pool, partitioning it into disjoint sets (fractions are of the TOTAL
+/// eligible pool; sum <= 1.0 expected, over-assignment is clamped to what's
+/// left). monerod is the implicit default and never appears in the returned map.
+/// Returns agent_id -> impl_id. Empty / all-monerod `fractions` => empty map.
+fn compute_node_impl_set(
+    user_agents: &[(&String, &AgentConfig)],
+    seed: u64,
+    fractions: &BTreeMap<String, f64>,
+) -> HashMap<String, String> {
+    let mut assignment = HashMap::new();
+    if fractions
+        .iter()
+        .all(|(id, f)| id == "monerod" || *f <= 0.0)
+    {
+        return assignment;
+    }
+    let mut eligible: Vec<String> = Vec::new();
+    for (id, cfg) in user_agents {
+        if cfg.is_miner() {
+            continue; // mines via generateblocks — monerod only
+        }
+        if cfg.has_daemon_phases() {
+            continue; // upgrade-phase node — monerod only
+        }
+        let is_seed = cfg
+            .attributes
+            .as_ref()
+            .map(|a| a.get("is_seed_node").map_or(false, |v| v == "true"))
+            .unwrap_or(false);
+        if is_seed {
+            continue; // bootstrap backbone — monerod only
+        }
+        eligible.push(id.to_string());
+    }
+    eligible.sort_by_key(|id| seeded_hash(seed, &format!("nodeimpl:{}", id)));
+
+    let n = eligible.len();
+    let mut cursor = 0usize;
+    for (impl_id, frac) in fractions {
+        if impl_id == "monerod" {
+            continue; // implicit default
+        }
+        let frac = frac.clamp(0.0, 1.0);
+        if frac <= 0.0 {
+            continue;
+        }
+        let remaining = n.saturating_sub(cursor);
+        let count = ((frac * n as f64).round() as usize).min(remaining);
+        for id in eligible.iter().skip(cursor).take(count) {
+            assignment.insert(id.clone(), impl_id.clone());
+        }
+        cursor += count;
+    }
+    assignment
 }
 
 /// Decide which non-seed agents are unreachable. This set drives BOTH the
@@ -298,6 +369,8 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
         reachable_fraction,
         reachable_by_role,
         hidden_fraction,
+        node_implementations,
+        experimental_cuprate_boot,
         simulation_stop_secs,
         turnover,
     } = ctx;
@@ -424,6 +497,17 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
         Some(c) => compute_turnover_set(&user_agents, simulation_seed, c.fraction),
         None => HashSet::new(),
     };
+
+    // Assign alternate node implementations (e.g. cuprate) to eligible relay
+    // nodes. Empty node_implementations => empty map => every node is monerod.
+    let node_impl_assignment =
+        compute_node_impl_set(&user_agents, simulation_seed, node_implementations);
+    if !node_impl_assignment.is_empty() {
+        log::info!(
+            "Node implementations: {} node(s) assigned a non-monerod implementation",
+            node_impl_assignment.len()
+        );
+    }
     let turnover_params: Option<(f64, f64, f64, f64, f64)> = match turnover {
         Some(c) => {
             let mean_session = parse_duration_to_seconds(&c.mean_session).map_err(|e| {
@@ -619,73 +703,27 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                 .or_insert(OptionValue::Bool(true));
         }
 
-        let build_daemon_args_base = |phase_args: Option<&Vec<String>>| -> Vec<String> {
-            // Start with required/injected flags that cannot be overridden.
-            //
-            // --log-file: vanilla monerod's default is ~/.bitmonero/bitmonero.log
-            // (per `monerod --help`), NOT <data-dir>/bitmonero.log. The
-            // shadowformonero patches we used to apply pinned it to data-dir,
-            // but those were dropped in 641bc5a6 (Apr 21 2026). Without an
-            // explicit --log-file, monerod silently writes nothing — the
-            // monitor's daemon-log discovery and run_sim.sh's archive step
-            // both glob /tmp/monero-*/bitmonero.log and turn up empty,
-            // leaving the post-run summary reporting "0 nodes / 0 blocks"
-            // even on a healthy sim.
-            let data_dir = format!("{}/monero-{}", daemon_data_dir, agent_id);
-            let mut args = vec![
-                format!("--data-dir={}", data_dir),
-                format!("--log-file={}/bitmonero.log", data_dir),
-                "--regtest".to_string(),
-                "--keep-fakechain".to_string(),
-            ];
-
-            // Add process_threads flags if set and not overridden in daemon_defaults
-            if process_threads > 0 {
-                if !merged_daemon_options.contains_key("prep-blocks-threads") {
-                    args.push(format!("--prep-blocks-threads={}", process_threads));
-                }
-                if !merged_daemon_options.contains_key("max-concurrency") {
-                    args.push(format!("--max-concurrency={}", process_threads));
-                }
-            }
-
-            // Add configurable options from merged daemon_defaults + daemon_options
-            args.extend(options_to_args(&merged_daemon_options));
-
-            // Add required network binding flags (always injected, use agent-specific values)
-            args.extend(vec![
-                format!("--rpc-bind-ip={}", agent_ip),
-                format!("--rpc-bind-port={}", daemon_rpc_port),
-                "--confirm-external-bind".to_string(),
-                "--rpc-access-control-origins=*".to_string(),
-                format!("--p2p-bind-ip={}", agent_ip),
-                format!("--p2p-bind-port={}", p2p_port),
-            ]);
-
-            // Add DNS and seed node settings
-            if !enable_dns_server {
-                args.push("--disable-dns-checkpoints".to_string());
-            }
-            if is_miner && !enable_dns_server {
-                args.push("--disable-seed-nodes".to_string());
-            }
-
-            // Add initial fixed connections
+        // Peer/connection args (pre-formatted monerod flag strings), computed
+        // once. Lifted verbatim from the former build_daemon_args_base closure so
+        // MonerodImpl::render can append them after the DNS flags in the exact
+        // historical order (the tests/golden/* snapshots enforce byte-identity).
+        let peer_args: Vec<String> = {
+            let mut pa: Vec<String> = Vec::new();
+            // Initial fixed connections for miners / seeds.
             if is_miner {
                 if let Some(conns) = miner_connections.get(*agent_id) {
                     for conn in conns {
-                        args.push(conn.clone());
+                        pa.push(conn.clone());
                     }
                 }
             } else if is_seed_node || seed_nodes.iter().any(|e| e.is_seed_node && e.index == i) {
                 if let Some(conns) = seed_connections.get(*agent_id) {
                     for conn in conns {
-                        args.push(conn.clone());
+                        pa.push(conn.clone());
                     }
                 }
             }
-
-            // Add peer connections for regular agents
+            // Peer connections for regular agents.
             let is_actual_seed_node = seed_nodes.iter().any(|e| e.index == i);
             if !is_miner && !is_actual_seed_node {
                 for seed_node in seed_agents.iter() {
@@ -695,7 +733,7 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                         } else {
                             format!("--add-priority-node={}", seed_node)
                         };
-                        args.push(peer_arg);
+                        pa.push(peer_arg);
                     }
                 }
                 if matches!(peer_mode, PeerMode::Hybrid) {
@@ -703,20 +741,98 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                         let topology_connections =
                             generate_topology_connections(topo, i, &all_agent_ips, &agent_ip);
                         for conn in topology_connections {
-                            args.push(conn);
+                            pa.push(conn);
                         }
                     }
                 }
             }
+            pa
+        };
+        // Raw peer addresses (ip:port) extracted from the monerod-format peer
+        // args, for implementations (cuprate) that take a seed list rather than
+        // per-peer CLI flags. `--flag=ip:port` -> `ip:port`.
+        let peer_addrs: Vec<String> = peer_args
+            .iter()
+            .filter_map(|a| a.rsplit_once('=').map(|(_, addr)| addr.to_string()))
+            .collect();
 
-            // Add phase-specific args
-            if let Some(custom_args) = phase_args {
-                for arg in custom_args {
-                    args.push(arg.clone());
+        // Node implementation for this agent. P1: always monerod — the
+        // `node_implementations` selection lands in a follow-up (empty => monerod,
+        // keeping output byte-identical). The spec is implementation-independent;
+        // the impl renders it into concrete args (+ any config files).
+        // Select this agent's node implementation (default monerod). Assignment
+        // is empty unless general.node_implementations was set, so the monerod
+        // path is unchanged.
+        let impl_id: &str = node_impl_assignment
+            .get(*agent_id)
+            .map(|s| s.as_str())
+            .unwrap_or("monerod");
+        let node_implementation =
+            crate::agent::node_impl::resolve_node_impl(impl_id).ok_or_else(|| {
+                color_eyre::eyre::eyre!(
+                    "Agent '{}': unknown node implementation '{}'",
+                    agent_id,
+                    impl_id
+                )
+            })?;
+        let launch_spec = crate::agent::node_impl::NodeLaunchSpec {
+            data_dir: format!("{}/monero-{}", daemon_data_dir, agent_id),
+            config_dir: format!("{}/cuprate-{}", daemon_data_dir, agent_id),
+            agent_ip: agent_ip.as_str(),
+            rpc_port: daemon_rpc_port,
+            p2p_port,
+            process_threads,
+            enable_dns_server,
+            is_miner,
+            daemon_options: &merged_daemon_options,
+            peer_args: peer_args.as_slice(),
+            peer_addrs: peer_addrs.as_slice(),
+        };
+        // Gate unsupported placements, then materialize any config files the
+        // implementation needs (cuprate's Cuprated.toml) into the stable
+        // config_dir (survives the pre-sim `monero-*` cleanup). monerod:
+        // preflight Ok + no config files => no-op, output unchanged.
+        {
+            use crate::agent::node_impl::NodeImplementation;
+            if let Err(reason) = node_implementation.preflight(&launch_spec) {
+                if !experimental_cuprate_boot {
+                    return Err(color_eyre::eyre::eyre!(
+                        "Agent '{}': node implementation '{}' cannot be placed: {} \
+                         Set general.experimental_cuprate_boot: true to override \
+                         (boot-testing only).",
+                        agent_id,
+                        impl_id,
+                        reason
+                    ));
+                }
+                log::warn!(
+                    "Agent '{}': placing '{}' despite preflight ({})",
+                    agent_id,
+                    impl_id,
+                    reason
+                );
+            }
+            let rendered = node_implementation.render(&launch_spec, None);
+            if !rendered.config_files.is_empty() {
+                std::fs::create_dir_all(&launch_spec.config_dir).map_err(|e| {
+                    color_eyre::eyre::eyre!(
+                        "Agent '{}': create config dir '{}': {}",
+                        agent_id,
+                        launch_spec.config_dir,
+                        e
+                    )
+                })?;
+                for cf in &rendered.config_files {
+                    let path = format!("{}/{}", launch_spec.config_dir, cf.rel_path);
+                    std::fs::write(&path, &cf.contents).map_err(|e| {
+                        color_eyre::eyre::eyre!("Agent '{}': write '{}': {}", agent_id, path, e)
+                    })?;
                 }
             }
-
-            args
+        }
+        let build_daemon_args_base = |phase_args: Option<&Vec<String>>| -> Vec<String> {
+            use crate::agent::node_impl::NodeImplementation;
+            node_implementation.render(&launch_spec, phase_args).args
         };
 
         // Add Monero daemon process(es) - either simple or phase-based
@@ -791,18 +907,35 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
             let daemon_args = build_daemon_args_base(user_agent_config.daemon_args.as_ref());
 
             // Get daemon binary path from config, fall back to default
-            let daemon_binary_path = match &user_agent_config.daemon {
-                Some(DaemonConfig::Local(path)) => {
-                    resolve_binary_path_for_shadow(path).map_err(|e| {
+            // Assigned a non-monerod implementation => use that impl's binary
+            // (ignoring any explicit `daemon:` name, which defaults to monerod in
+            // configs). Otherwise keep the historical resolution exactly.
+            let daemon_binary_path = if impl_id != "monerod" {
+                use crate::agent::node_impl::NodeImplementation;
+                resolve_binary_path_for_shadow(node_implementation.default_binary()).map_err(
+                    |e| {
                         color_eyre::eyre::eyre!(
-                            "Agent '{}': failed to resolve daemon binary path '{}': {}",
+                            "Agent '{}': failed to resolve '{}' binary: {}",
                             agent_id,
-                            path,
+                            node_implementation.default_binary(),
                             e
                         )
-                    })?
+                    },
+                )?
+            } else {
+                match &user_agent_config.daemon {
+                    Some(DaemonConfig::Local(path)) => {
+                        resolve_binary_path_for_shadow(path).map_err(|e| {
+                            color_eyre::eyre::eyre!(
+                                "Agent '{}': failed to resolve daemon binary path '{}': {}",
+                                agent_id,
+                                path,
+                                e
+                            )
+                        })?
+                    }
+                    _ => monerod_path.to_string(),
                 }
-                _ => monerod_path.to_string(),
             };
 
             // Merge custom environment from config with base environment
