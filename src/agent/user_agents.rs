@@ -1298,6 +1298,21 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                 .clone()
                 .unwrap_or_else(|| "agents.regular_user".to_string());
 
+            // Issue #4 (wallet persistence): SIGTERM script agents 2
+            // sim-minutes before stop_time so base_agent's cleanup can
+            // store + close its wallet while wallet-rpc is still alive.
+            // The wallet-rpc PROCESS itself is deliberately never signaled:
+            // a wedged wallet-rpc ignores SIGTERM (docs/UPGRADE_WALLET_SIGKILL.md),
+            // which would turn rare wallet hangs into false run-failures.
+            // Skipped for agents that start inside that window.
+            let agent_shutdown_time: Option<String> = {
+                let start_secs = parse_duration_to_seconds(&agent_start_time).unwrap_or(0);
+                simulation_stop_secs
+                    .checked_sub(120)
+                    .filter(|t| *t > start_secs + 30)
+                    .map(|t| format!("{}s", t))
+            };
+
             if is_miner && script.contains("autonomous_miner") {
                 // HYBRID APPROACH for miners: Run both regular_user (for wallet) AND mining_script
 
@@ -1350,6 +1365,7 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                         .map(|s| s.as_str()),
                     scripts_dir,
                     wallet_rpc_cmd: wallet_rpc_cmd.as_deref(),
+                    shutdown_time: agent_shutdown_time.clone(),
                 });
 
                 // Step 2: Run mining_script (autonomous_miner.py)
@@ -1380,6 +1396,7 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                     custom_start_time: Some(&mining_start_time),
                     scripts_dir,
                     wallet_rpc_cmd: wallet_rpc_cmd.as_deref(),
+                    shutdown_time: agent_shutdown_time.clone(),
                 });
                 processes.extend(mining_processes);
             } else if !script.is_empty() {
@@ -1440,6 +1457,7 @@ pub fn process_user_agents(ctx: UserAgentProcessContext<'_>) -> color_eyre::eyre
                         .map(|s| s.as_str()),
                     scripts_dir,
                     wallet_rpc_cmd: wallet_rpc_cmd.as_deref(),
+                    shutdown_time: agent_shutdown_time.clone(),
                 });
             }
         } // end daemon-only guard

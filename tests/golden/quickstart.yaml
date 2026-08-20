@@ -131,7 +131,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 5s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     - path: /bin/bash
       args:
       - TMPDIR/scripts/mining_agent_miner-001_wrapper.sh
@@ -150,7 +152,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 15s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'
   miner-002:
@@ -242,7 +246,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 6s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     - path: /bin/bash
       args:
       - TMPDIR/scripts/mining_agent_miner-002_wrapper.sh
@@ -261,7 +267,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 16s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'
   miner-003:
@@ -353,7 +361,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 7s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     - path: /bin/bash
       args:
       - TMPDIR/scripts/mining_agent_miner-003_wrapper.sh
@@ -372,7 +382,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 17s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'
   miner-004:
@@ -464,7 +476,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 8s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     - path: /bin/bash
       args:
       - TMPDIR/scripts/mining_agent_miner-004_wrapper.sh
@@ -483,7 +497,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 18s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'
   miner-005:
@@ -575,7 +591,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 9s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     - path: /bin/bash
       args:
       - TMPDIR/scripts/mining_agent_miner-005_wrapper.sh
@@ -594,7 +612,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 19s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'
   miner-distributor:
@@ -1068,7 +1088,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 2405s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'
   user-02:
@@ -1163,7 +1185,9 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 2415s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'
   user-03:
@@ -1258,6 +1282,8 @@ hosts:
         SIMULATION_SEED: '12345'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 2425s
-      expected_final_state: running
+      shutdown_time: 21480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'

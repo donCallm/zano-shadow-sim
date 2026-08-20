@@ -96,7 +96,9 @@ hosts:
         SIMULATION_SEED: '42'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 5s
-      expected_final_state: running
+      shutdown_time: 3480s
+      expected_final_state:
+        exited: 0
     - path: /bin/bash
       args:
       - TMPDIR/scripts/mining_agent_miner-001_wrapper.sh
@@ -115,7 +117,9 @@ hosts:
         SIMULATION_SEED: '42'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 15s
-      expected_final_state: running
+      shutdown_time: 3480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'
   monitor:
@@ -228,6 +232,8 @@ hosts:
         SIMULATION_SEED: '42'
         VENV_SITE_PACKAGES: REPO_ROOT/venv/lib/python3.12/site-packages
       start_time: 305s
-      expected_final_state: running
+      shutdown_time: 3480s
+      expected_final_state:
+        exited: 0
     bandwidth_down: '1000000000'
     bandwidth_up: '1000000000'

@@ -29,6 +29,10 @@ pub struct UserAgentProcessArgs<'a> {
     pub daemon_selection_strategy: Option<&'a str>,
     pub scripts_dir: &'a Path,
     pub wallet_rpc_cmd: Option<&'a str>,
+    /// When set, Shadow SIGTERMs the agent at this time (issue #4: the
+    /// agent's cleanup stores + closes its wallet while wallet-rpc is still
+    /// alive) and the process is expected to exit 0 instead of Running.
+    pub shutdown_time: Option<String>,
 }
 
 /// Add a user agent process to the processes list
@@ -145,14 +149,21 @@ export PATH="$PATH:{}/.monerosim/bin"
         format!("{}s", 65 + args.index * 2)
     };
 
+    // With a scheduled shutdown the agent handles SIGTERM (base_agent.py),
+    // runs cleanup, and exits 0; without one it runs to simulation end.
+    let expected_final_state = if args.shutdown_time.is_some() {
+        Some(crate::shadow::ExpectedFinalState::Exited(0))
+    } else {
+        Some(crate::shadow::ExpectedFinalState::Running)
+    };
     match write_wrapper_script(
         args.scripts_dir,
         &format!("agent_{}_wrapper.sh", args.agent_id),
         &wrapper_content,
         args.environment,
         start_time,
-        None,
-        Some(crate::shadow::ExpectedFinalState::Running),
+        args.shutdown_time.clone(),
+        expected_final_state,
     ) {
         Ok(process) => args.processes.push(process),
         Err(e) => log::error!(
@@ -178,6 +189,8 @@ pub struct MiningAgentProcessArgs<'a> {
     pub custom_start_time: Option<&'a str>,
     pub scripts_dir: &'a Path,
     pub wallet_rpc_cmd: Option<&'a str>,
+    /// See `UserAgentProcessArgs::shutdown_time`.
+    pub shutdown_time: Option<String>,
 }
 
 /// Create mining agent processes
@@ -271,14 +284,19 @@ export PATH="$PATH:{}/.monerosim/bin"
         format!("{}s", 65 + args.index * 2)
     };
 
+    let expected_final_state = if args.shutdown_time.is_some() {
+        Some(crate::shadow::ExpectedFinalState::Exited(0))
+    } else {
+        Some(crate::shadow::ExpectedFinalState::Running)
+    };
     match write_wrapper_script(
         args.scripts_dir,
         &format!("mining_agent_{}_wrapper.sh", args.agent_id),
         &wrapper_content,
         args.environment,
         start_time,
-        None,
-        Some(crate::shadow::ExpectedFinalState::Running),
+        args.shutdown_time.clone(),
+        expected_final_state,
     ) {
         Ok(process) => vec![process],
         Err(e) => {

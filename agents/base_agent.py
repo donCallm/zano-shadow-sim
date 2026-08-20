@@ -289,11 +289,28 @@ class BaseAgent(ABC):
         """Clean up resources before shutdown"""
         self.logger.info("Cleaning up agent resources")
         
-        # Close wallet if open
+        # Persist and close the wallet if open (issue #4). Shadow never
+        # signals the wallet-rpc PROCESS (a wedged wallet-rpc ignores SIGTERM,
+        # so signaling it would risk false run-failures — see
+        # docs/UPGRADE_WALLET_SIGKILL.md); instead the AGENT is SIGTERMed ~2
+        # sim-minutes before stop_time (agent_scripts.rs) and saves the cache
+        # here over RPC. Without this, everything after wallet creation lives
+        # only in wallet-rpc memory and dies with the simulation.
         if self.wallet_rpc:
+            # Bound cleanup RPCs so shutdown always finishes inside the grace
+            # window, even against a wedged wallet-rpc.
+            try:
+                self.wallet_rpc.timeout = 20
+            except Exception:
+                pass
+            try:
+                self.wallet_rpc.store()
+                self.logger.info("Wallet cache stored")
+            except Exception as e:
+                self.logger.warning(f"Error storing wallet during cleanup: {e}")
             try:
                 self.wallet_rpc.close_wallet()
-            except RPCError as e:
+            except Exception as e:
                 # Cleanup path: a wallet that's already closed/unreachable is fine; just log.
                 self.logger.debug(f"Error closing wallet during cleanup: {e}")
                 
