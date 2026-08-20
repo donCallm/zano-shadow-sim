@@ -45,7 +45,8 @@ fn remove_dir_with_permissions(path: &Path) -> std::io::Result<()> {
 
 /// Configuration utility for Monero network simulations in Shadow
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, about, long_about = None,
+    version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("MONEROSIM_GIT_HASH"), ")"))]
 struct Args {
     /// Path to the simulation configuration YAML file
     #[arg(short, long)]
