@@ -1,0 +1,94 @@
+# Late-joining hashrate test — measures chain cadence when total hashrate
+# jumps from 100 to 300 mid-run (GitHub issue #8 follow-up).
+#
+# Since the difficulty feedback was removed from miner pacing (ec973683),
+# each miner samples exponentially at (hashrate/100)/TARGET independently:
+#   0h-2h: miners 001-005 (sum 100)  -> expected aggregate ~2.0 min/block
+#   2h-4h: + miners 006-010 (sum 300) -> expected aggregate ~40 s/block
+# This config exists to MEASURE that distortion (real Monero would retarget
+# back toward 2 min); results feed the decision on registry-based pacing.
+general:
+  stop_time: 4h
+  simulation_seed: 12345
+  bootstrap_end_time: 30m
+  enable_dns_server: true
+  shadow_log_level: warning
+  progress: true
+  process_threads: 2
+  native_preemption: true
+  daemon_defaults:
+    log-level: monitor
+    max-log-file-size: 0
+    db-sync-mode: fastest
+    no-zmq: true
+    non-interactive: true
+  wallet_defaults:
+    log-level: 1
+network:
+  path: gml_processing/1200_nodes_caida_with_loops.gml
+  peer_mode: Dynamic
+agents:
+  miner-001:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 0s
+    hashrate: 20
+  miner-002:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 1s
+    hashrate: 20
+  miner-003:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 2s
+    hashrate: 20
+  miner-004:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 3s
+    hashrate: 20
+  miner-005:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 4s
+    hashrate: 20
+  # --- Late cohort: joins at 2h, adds 200 (total 300) ---
+  miner-006:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 7200s
+    hashrate: 40
+  miner-007:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 7205s
+    hashrate: 40
+  miner-008:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 7210s
+    hashrate: 40
+  miner-009:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 7215s
+    hashrate: 40
+  miner-010:
+    daemon: monerod
+    wallet: monero-wallet-rpc
+    script: agents.autonomous_miner
+    start_time: 7220s
+    hashrate: 40
+  simulation-monitor:
+    script: agents.simulation_monitor
+    poll_interval: 300
