@@ -304,17 +304,34 @@ class AutonomousMinerAgent(BaseAgent):
         # Calculate base expected time (at baseline difficulty)
         base_expected_time = TARGET_BLOCK_TIME / base_fraction
 
-        # Query current difficulty and calculate scaling factor
-        # This is the ONLY adjustment mechanism - lets LWMA do its job
+        # NO difficulty feedback (GitHub issue #8). Chain difficulty used to
+        # scale the expected time (factor = difficulty / baseline), intended
+        # to emulate retargeting. In regtest that coupling is UNSTABLE: the
+        # chain's retarget algorithm and this factor form two coupled
+        # controllers (plus a 30s difficulty cache), and an unlucky early
+        # block cluster (seed 8) excited the loop into 20x factors and
+        # half-hour chain stalls (mean 5.0m vs the 2m target). Two attempted
+        # dampings both failed measurably: clamping the factor to [0.5,3]
+        # turned the spike into a run-long slow plateau (median 2.5m->3.4m),
+        # and gating it off during warmup let warmup difficulty ladder even
+        # higher, regressing previously-normal seeds (seed 1 mean
+        # 2.5m->4.6m). Removing the feedback is correct by construction:
+        # miners run a pure exponential race whose aggregate rate is the
+        # 2-minute target whenever hashrates sum to 100, on every seed.
+        #
+        # Consequences, deliberate and documented:
+        # - Steady cadence is now the nominal TARGET_BLOCK_TIME. The old
+        #   coupling equilibrated at difficulty 2 / factor 2, which is why
+        #   historical runs measured ~2.4-2.8 min/block against the 2-minute
+        #   target. Cadence-derived planning (e.g. hard fork heights) must
+        #   use 2.0 min/block for runs at or after this change.
+        # - Late-joining hashrate (weights summing past 100) now speeds up
+        #   the chain proportionally instead of being re-targeted away — a
+        #   linear, predictable distortion in place of an unstable one.
+        # Difficulty is still queried for logs/stats; it no longer steers.
         current_difficulty = self._get_current_difficulty()
-        if self.baseline_difficulty and self.baseline_difficulty > 0:
-            difficulty_factor = current_difficulty / self.baseline_difficulty
-        else:
-            difficulty_factor = 1.0
-
-        # Scale expected time by difficulty factor
-        # If difficulty doubled (e.g., from new miners), blocks take 2x longer
-        expected_agent_block_time = base_expected_time * difficulty_factor
+        difficulty_factor = 1.0
+        expected_agent_block_time = base_expected_time
 
         # Lambda (rate parameter) = 1 / expected_time
         lambda_rate = 1.0 / expected_agent_block_time
