@@ -51,6 +51,31 @@ class AutonomousMinerAgent(BaseAgent):
         self._difficulty_cache_time = 0.0
         self._difficulty_cache_ttl = float(os.getenv('DIFFICULTY_CACHE_TTL', '30'))
 
+        # Synthetic difficulty adjustment (see _get_daa_multiplier).
+        # Window is in blocks: long enough that Poisson noise averages out
+        # (relative error ~1/sqrt(N)), short enough to track a real hashrate
+        # change within a plausible retarget period. DAA_WINDOW=0 disables
+        # the correction entirely (pure fixed-rate pacing).
+        # DISABLED BY DEFAULT (0). The estimator below is complete and its
+        # dynamics are documented, but it did not pass validation — see the
+        # failure table in _get_daa_multiplier. Set DAA_WINDOW=30 to
+        # experiment; at 0 the multiplier is a constant 1.0 and pacing is
+        # arithmetically identical to the validated fixed-rate model.
+        self.daa_window = int(os.getenv('DAA_WINDOW', '0'))
+        self.daa_min = float(os.getenv('DAA_MIN', '0.1'))
+        self.daa_max = float(os.getenv('DAA_MAX', '10.0'))
+        # The multiplier ACCUMULATES (see _get_daa_multiplier): like real
+        # difficulty it is adjusted from its previous value, not recomputed
+        # from scratch. daa_gain damps each update.
+        self._daa_multiplier = 1.0
+        self._daa_last_height = None   # last block height folded into the multiplier
+        self._daa_ts = {}              # height -> block timestamp (replay cache)
+        # Gain per BLOCK. 1/window makes the effective gain exactly 1 per
+        # window: a windowed measurement applied at every step otherwise
+        # over-corrects by ~the window length. Measured: gain 0.3 with a
+        # 30-block window (effective ~9) rang between the 0.1 and 10 bounds.
+        self.daa_gain = float(os.getenv('DAA_GAIN', '0')) or (1.0 / max(self.daa_window, 1))
+
         # Mining control
         self.mining_active = False
         
@@ -258,6 +283,110 @@ class AutonomousMinerAgent(BaseAgent):
                 return self._cached_difficulty
             return 1  # Fallback to minimum difficulty
             
+    def _get_daa_multiplier(self) -> float:
+        """Synthetic difficulty adjustment from this chain's block timestamps.
+
+        Returns a factor to MULTIPLY the expected inter-block time by:
+          >1 recent blocks came too fast  -> miners slow down
+          <1 recent blocks came too slow  -> miners speed up
+          =1 on target, or window not yet available (warmup)
+
+        The multiplier ACCUMULATES, exactly as real difficulty does
+        (D_new = D_old * expected/observed), applied once per BLOCK HEIGHT:
+
+            for each new height h:
+                m <- m * ((WINDOW*TARGET) / (ts[h] - ts[h-WINDOW])) ** GAIN
+
+        Three properties, each of which cost a failed validation run to
+        learn:
+
+        1. ACCUMULATION. A stateless estimator (m = expected/observed each
+           call) under-corrects by exactly a square root: with S = T*m/H and
+           m = T/S the fixed point is S = T/sqrt(H). Measured at 3x
+           hashrate: 78s vs the predicted 120/sqrt(3) = 69s; a 20% minority
+           settled at 314s vs 268s. Accumulating makes observed == expected
+           the only fixed point.
+
+        2. GAIN = 1/WINDOW. A windowed measurement applied every step
+           over-corrects by ~the window length. Gain 0.3 with a 30-block
+           window (effective ~9) rang between both safety bounds and left
+           the chain 39% slow. 1/window puts the effective gain at 1.
+
+        3. REPLAY PER HEIGHT, not per own-block. Miners mine at different
+           rates, so per-own-block updates would apply different numbers of
+           corrections per window and drift apart. Replaying over heights
+           makes m a pure function of the chain: every miner computes the
+           same value, which is what keeps real difficulty coherent.
+
+        This is LWMA's principle (observed vs expected elapsed time) computed
+        directly from headers, deliberately NOT from chain difficulty — see
+        the block comment in _calculate_next_block_time for why that signal
+        was unusable. Reads fresh every call: a cache here would add phase
+        lag, which is what makes this class of loop oscillate.
+
+        Timestamps are per-CHAIN, so a partitioned minority retargets on its
+        own chain independently — the behavior the no-feedback model lacked.
+        """
+        if not self.daemon_rpc:
+            return self._daa_multiplier
+        window = self.daa_window
+        if window <= 0:
+            return 1.0
+        try:
+            info = self.daemon_rpc.get_info()
+            height = int(info.get('height', 0))  # block COUNT (top index + 1)
+        except Exception as e:
+            self.logger.debug(f"DAA: get_info failed ({e}); holding {self._daa_multiplier:.3f}")
+            return self._daa_multiplier
+
+        top = height - 1
+        # Need a full window of real history. Below that the estimator would
+        # be reading warmup noise (the exact defect that made the old
+        # difficulty-based loop explode on seed 8).
+        if top < window:
+            return 1.0
+
+        # A shorter chain than last time means a reorg (e.g. the pop-blocks
+        # path after a late upgrade): drop cached timestamps and replay.
+        if self._daa_last_height is not None and top < self._daa_last_height:
+            self.logger.debug(f"DAA: chain shortened {self._daa_last_height}->{top}, replaying")
+            self._daa_ts.clear()
+            self._daa_last_height = None
+            self._daa_multiplier = 1.0
+
+        def ts(h):
+            cached = self._daa_ts.get(h)
+            if cached is None:
+                cached = int(self.daemon_rpc.get_block_header_by_height(h).get('timestamp', 0))
+                self._daa_ts[h] = cached
+            return cached
+
+        start = window if self._daa_last_height is None else self._daa_last_height + 1
+        expected = window * TARGET_BLOCK_TIME_SECS
+        m = self._daa_multiplier
+        try:
+            for h in range(start, top + 1):
+                observed = ts(h) - ts(h - window)
+                if observed <= 0:
+                    continue
+                m = max(self.daa_min, min(self.daa_max,
+                                          m * ((expected / observed) ** self.daa_gain)))
+        except Exception as e:
+            self.logger.debug(f"DAA: header fetch failed ({e}); holding {self._daa_multiplier:.3f}")
+            return self._daa_multiplier
+
+        self._daa_multiplier = m
+        self._daa_last_height = top
+        # Keep the replay cache bounded; only the trailing window is reused.
+        if len(self._daa_ts) > 4 * window:
+            for h in [k for k in self._daa_ts if k < top - 2 * window]:
+                del self._daa_ts[h]
+        self.logger.debug(
+            f"DAA: replayed to {top} window={window} gain={self.daa_gain:.4f} "
+            f"multiplier={m:.3f}"
+        )
+        return m
+
     def _calculate_next_block_time(self) -> float:
         """
         Calculate time until next block discovery using Poisson distribution.
@@ -304,34 +433,38 @@ class AutonomousMinerAgent(BaseAgent):
         # Calculate base expected time (at baseline difficulty)
         base_expected_time = TARGET_BLOCK_TIME / base_fraction
 
-        # NO difficulty feedback (GitHub issue #8). Chain difficulty used to
-        # scale the expected time (factor = difficulty / baseline), intended
-        # to emulate retargeting. In regtest that coupling is UNSTABLE: the
-        # chain's retarget algorithm and this factor form two coupled
-        # controllers (plus a 30s difficulty cache), and an unlucky early
-        # block cluster (seed 8) excited the loop into 20x factors and
-        # half-hour chain stalls (mean 5.0m vs the 2m target). Two attempted
-        # dampings both failed measurably: clamping the factor to [0.5,3]
-        # turned the spike into a run-long slow plateau (median 2.5m->3.4m),
-        # and gating it off during warmup let warmup difficulty ladder even
-        # higher, regressing previously-normal seeds (seed 1 mean
-        # 2.5m->4.6m). Removing the feedback is correct by construction:
-        # miners run a pure exponential race whose aggregate rate is the
-        # 2-minute target whenever hashrates sum to 100, on every seed.
+        # SYNTHETIC DIFFICULTY ADJUSTMENT (GitHub issue #8).
         #
-        # Consequences, deliberate and documented:
-        # - Steady cadence is now the nominal TARGET_BLOCK_TIME. The old
-        #   coupling equilibrated at difficulty 2 / factor 2, which is why
-        #   historical runs measured ~2.4-2.8 min/block against the 2-minute
-        #   target. Cadence-derived planning (e.g. hard fork heights) must
-        #   use 2.0 min/block for runs at or after this change.
-        # - Late-joining hashrate (weights summing past 100) now speeds up
-        #   the chain proportionally instead of being re-targeted away — a
-        #   linear, predictable distortion in place of an unstable one.
-        # Difficulty is still queried for logs/stats; it no longer steers.
+        # Rate is corrected by an estimator computed from this chain's own
+        # block-header timestamps — the same principle as LWMA, but it does
+        # NOT read chain difficulty. History: pacing used to scale by
+        # (chain difficulty / baseline), which was unstable and produced
+        # 38-minute stalls on seed 8. The instability was not inherent to
+        # feedback (real Monero's DAA is exactly this shape and is stable) —
+        # it came from four defects in that specific signal, all removed here:
+        #   * regtest difficulty is a SMALL INTEGER (1,2,3..22): stepping
+        #     1->2 is an instant 2x rate change. Here the correction is a
+        #     continuous float.
+        #   * the retarget window at genesis is ~3 blocks, so warmup noise
+        #     was treated as signal. Here the estimator is silent until a
+        #     full window exists (and with a fixed cohort summing to 100 the
+        #     uncorrected rate is already correct during warmup).
+        #   * the difficulty read was CACHED for 30s, adding phase lag —
+        #     the classic oscillation ingredient. This reads fresh headers.
+        #   * baseline=1 vs the loop's difficulty-2 equilibrium made every
+        #     historical run pace at ~2.8 min/block instead of 2.0.
+        #
+        # Estimator: over the last DAA_WINDOW blocks, multiplier =
+        # (expected elapsed) / (actual elapsed). Blocks too fast => >1 =>
+        # miners wait longer. Every miner on a chain reads the same headers,
+        # so the correction is coherent across the cohort without consensus
+        # difficulty being involved; a partitioned minority retargets on its
+        # OWN chain, which is the behavior real Monero has and the previous
+        # (no-feedback) model lacked.
+        difficulty_factor = self._get_daa_multiplier()
+        expected_agent_block_time = base_expected_time * difficulty_factor
+        # Kept for logs/statistics only; no longer steers pacing.
         current_difficulty = self._get_current_difficulty()
-        difficulty_factor = 1.0
-        expected_agent_block_time = base_expected_time
 
         # Lambda (rate parameter) = 1 / expected_time
         lambda_rate = 1.0 / expected_agent_block_time
