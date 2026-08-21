@@ -1,18 +1,18 @@
-# Hard fork validation gate — 5 miners + 2 users, 6h, fork at height 105.
+# Hard fork validation gate — 5 miners + 2 users, 6h, fork at height 150.
 #
 # Network upgrade (v14 -> v15) with one node left behind: user-02's daemon
 # runs a schedule that stops at v14, consensus-identical to not upgrading the
 # software. All miners are upgraded, so this is the STALL variant: after the
-# fork the laggard freezes at top index 104 while the network moves on. (For a
+# fork the laggard freezes at top index 149 while the network moves on. (For a
 # chain SPLIT put one miner on the short schedule instead.)
 #
-# Timeline (block cadence MEASURED at ~2.8 min in this scenario — a 6h run
-# produces ~128 blocks, so height targets must use 2.8, not the nominal 2):
+# Timeline (cadence = nominal 2.0 min/block since v0.2.0, issue #8 fix —
+# ~180 blocks in 6h; runs before that measured ~2.8):
 #   0h        miners + seeds up, chain starts at v14 (schedule 1:0,14:1,15:105)
 #   40m       users' daemons+wallets up
 #   4h        bootstrap ends; users start transacting (v14-era txs: ring 11, BP)
-#   ~4h55m    height 105: miners switch to major_version 15
-#             - user-02 daemon rejects v15 blocks, stalls at top index 104;
+#   ~5h       height 150: miners switch to major_version 15
+#             - user-02 daemon rejects v15 blocks, stalls at top index 149;
 #               its wallet stops confirming
 #             - everyone else follows the fork; user-01 keeps transacting
 #               (v15-era txs: ring 16, BP+)
@@ -20,8 +20,8 @@
 #
 # Pass criteria:
 #   - shadow exits 0; all daemons run to the end (user-02 STALLED, not crashed)
-#   - upgraded nodes agree on a tip well past 105 with major_version 15
-#   - user-02: summary height exactly 105 (top index 104); "has old version" + "Block
+#   - upgraded nodes agree on a tip well past 150 with major_version 15
+#   - user-02: summary height exactly 150 (top index 149); "has old version" + "Block
 #     verification failed" + ban lines in its log; hard_fork_info stayed v14
 #   - pre-fork: user-02 saw votes for v15 (miners' blocks carry minor_version
 #     15 from the start — the real-world "update needed" signal)
@@ -45,7 +45,7 @@ general:
     db-sync-mode: fastest
     no-zmq: true
     non-interactive: true
-    fakechain-hard-forks: "1:0,14:1,15:105"
+    fakechain-hard-forks: "1:0,14:1,15:150"
   wallet_defaults:
     log-level: 1
 network:

@@ -129,14 +129,18 @@ Start from `test_configs/hf_smoke_5m2u.yaml` (validation gate) or
 
 ### Planning the fork height
 
-Use **measured** cadence, not the nominal 2-minute target. In the gate
-scenario the effective cadence is ~2.8 min/block (a 6h run produced 128
-blocks; the first gate attempt placed the fork at 150 and it never fired).
-Rule of thumb for these small configs:
+**Cadence changed at v0.2.0** (commit `ec973683`, issue #8): the miner
+pacing bug that made every run measure ~2.8 min/block was removed, and the
+effective cadence is now the nominal **2.0 min/block** (validated: 202/201
+blocks in 7h on two seeds, mean 2.07m). Rule of thumb:
 
 ```
-H ≈ (minutes until desired fork time) / 2.8
+H ≈ (minutes until desired fork time) / 2.0     # runs at/after v0.2.0
+H ≈ (minutes until desired fork time) / 2.8     # historical runs before it
 ```
+
+The validated results below (§8) were produced at the old 2.8 cadence; the
+`hf_*` configs' fork heights have been re-tuned for 2.0.
 
 Height convention: monerod reports height = block **count** = top index + 1.
 A laggard with fork height H stalls showing height **H** (top block index

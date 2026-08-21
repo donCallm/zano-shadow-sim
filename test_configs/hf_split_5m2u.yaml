@@ -1,4 +1,4 @@
-# Hard fork CHAIN SPLIT variant — 5 miners + 2 users, 6h, fork at height 105.
+# Hard fork CHAIN SPLIT variant — 5 miners + 2 users, 6h, fork at height 150.
 #
 # Same population as hf_smoke_5m2u.yaml, but the laggard side has HASHPOWER:
 # miner-005 (20% of hashrate) and user-02 both run the short schedule. After
@@ -9,9 +9,9 @@
 #
 # Timeline (measured cadence ~2.8 min/block aggregate pre-fork):
 #   ~4h55m  height 105: chains diverge
-#           - majority (4 miners, 80%): v15 blocks, ~3.5 min cadence
-#           - minority (miner-005, 20%): v14 blocks, ~14 min cadence
-#   6h      stop — majority tip ≈ 123, minority tip ≈ 109-110
+#           - majority (4 miners, 80%): v15 blocks, ~2.5 min cadence
+#           - minority (miner-005, 20%): v14 blocks, ~10 min cadence
+#   6h      stop — majority ~30 more blocks, minority ~6 (80/20 split)
 #
 # Pass criteria:
 #   - both partitions grow PAST 105: majority nodes share one tip (v15),
@@ -40,7 +40,7 @@ general:
     db-sync-mode: fastest
     no-zmq: true
     non-interactive: true
-    fakechain-hard-forks: "1:0,14:1,15:105"
+    fakechain-hard-forks: "1:0,14:1,15:150"
   wallet_defaults:
     log-level: 1
 network:
