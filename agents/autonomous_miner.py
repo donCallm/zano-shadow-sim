@@ -56,25 +56,18 @@ class AutonomousMinerAgent(BaseAgent):
         # (relative error ~1/sqrt(N)), short enough to track a real hashrate
         # change within a plausible retarget period. DAA_WINDOW=0 disables
         # the correction entirely (pure fixed-rate pacing).
-        # DISABLED BY DEFAULT (0). The estimator below is complete and its
-        # dynamics are documented, but it did not pass validation — see the
-        # failure table in _get_daa_multiplier. Set DAA_WINDOW=30 to
-        # experiment; at 0 the multiplier is a constant 1.0 and pacing is
-        # arithmetically identical to the validated fixed-rate model.
-        self.daa_window = int(os.getenv('DAA_WINDOW', '0'))
+        self.daa_window = int(os.getenv('DAA_WINDOW', '30'))
         self.daa_min = float(os.getenv('DAA_MIN', '0.1'))
         self.daa_max = float(os.getenv('DAA_MAX', '10.0'))
-        # The multiplier ACCUMULATES (see _get_daa_multiplier): like real
-        # difficulty it is adjusted from its previous value, not recomputed
-        # from scratch. daa_gain damps each update.
-        self._daa_multiplier = 1.0
-        self._daa_last_height = None   # last block height folded into the multiplier
+        # Corrections begin only once every block in the window is a
+        # mining-regime block: startup blocks (agent stagger, wallet
+        # creation) are slow for non-mining reasons, and letting them into a
+        # window measurably poisoned the estimate (baseline ran 13% fast).
+        self.daa_start = int(os.getenv('DAA_START', str(2 * self.daa_window)))
+        self._daa_d = {}               # height -> synthetic per-block multiplier
         self._daa_ts = {}              # height -> block timestamp (replay cache)
-        # Gain per BLOCK. 1/window makes the effective gain exactly 1 per
-        # window: a windowed measurement applied at every step otherwise
-        # over-corrects by ~the window length. Measured: gain 0.3 with a
-        # 30-block window (effective ~9) rang between the 0.1 and 10 bounds.
-        self.daa_gain = float(os.getenv('DAA_GAIN', '0')) or (1.0 / max(self.daa_window, 1))
+        self._daa_last_height = None   # last height replayed into _daa_d
+        self._daa_last_multiplier = 1.0  # last returned value (wait rescaling)
 
         # Mining control
         self.mining_active = False
@@ -284,6 +277,11 @@ class AutonomousMinerAgent(BaseAgent):
             return 1  # Fallback to minimum difficulty
             
     def _get_daa_multiplier(self) -> float:
+        m = self._get_daa_multiplier_inner()
+        self._daa_last_multiplier = m
+        return m
+
+    def _get_daa_multiplier_inner(self) -> float:
         """Synthetic difficulty adjustment from this chain's block timestamps.
 
         Returns a factor to MULTIPLY the expected inter-block time by:
@@ -291,68 +289,60 @@ class AutonomousMinerAgent(BaseAgent):
           <1 recent blocks came too slow  -> miners speed up
           =1 on target, or window not yet available (warmup)
 
-        The multiplier ACCUMULATES, exactly as real difficulty does
-        (D_new = D_old * expected/observed), applied once per BLOCK HEIGHT:
+        LWMA-form recurrence, one value per BLOCK HEIGHT, replayed
+        deterministically from headers:
 
-            for each new height h:
-                m <- m * ((WINDOW*TARGET) / (ts[h] - ts[h-WINDOW])) ** GAIN
+            d[k] = 1                                        for k <= START
+            d[k] = mean(d[k-W .. k-1]) * (W*T) / (ts[k-1] - ts[k-1-W])
+                                                            for k >  START
+            multiplier for the next block = d[top+1]
 
-        Three properties, each of which cost a failed validation run to
-        learn:
+        The structural choice that made this attempt different: real DAAs
+        recompute next-difficulty from the WINDOW-AVERAGE of past
+        difficulties (a finite-impulse-response form — any transient's
+        influence washes out after one window). The previous attempt used a
+        pure multiplicative accumulator (m *= ratio^gain), an
+        infinite-impulse integrator behind a trailing window — a textbook
+        ringing recipe, and it rang: overshoot to 5.0 against a correct
+        value of 3.0, final-hour cadence 215s vs the 120s target.
 
-        1. ACCUMULATION. A stateless estimator (m = expected/observed each
-           call) under-corrects by exactly a square root: with S = T*m/H and
-           m = T/S the fixed point is S = T/sqrt(H). Measured at 3x
-           hashrate: 78s vs the predicted 120/sqrt(3) = 69s; a 20% minority
-           settled at 314s vs 268s. Accumulating makes observed == expected
-           the only fixed point.
+        Properties carried forward from the earlier failures:
+        - state accumulates ACROSS the series (a stateless estimator's fixed
+          point is off by exactly sqrt(H): measured 78s vs predicted 69s at
+          3x hashrate);
+        - one update per HEIGHT via replay, so every miner computes the
+          identical series from the same headers (verified coherent to
+          within 5% before this rewrite);
+        - corrections start only at START = 2*W, so agent-startup blocks
+          (slow for non-mining reasons) never enter any window — letting
+          them in made the fixed-cohort baseline run 13% fast.
 
-        2. GAIN = 1/WINDOW. A windowed measurement applied every step
-           over-corrects by ~the window length. Gain 0.3 with a 30-block
-           window (effective ~9) rang between both safety bounds and left
-           the chain 39% slow. 1/window puts the effective gain at 1.
-
-        3. REPLAY PER HEIGHT, not per own-block. Miners mine at different
-           rates, so per-own-block updates would apply different numbers of
-           corrections per window and drift apart. Replaying over heights
-           makes m a pure function of the chain: every miner computes the
-           same value, which is what keeps real difficulty coherent.
-
-        This is LWMA's principle (observed vs expected elapsed time) computed
-        directly from headers, deliberately NOT from chain difficulty — see
-        the block comment in _calculate_next_block_time for why that signal
-        was unusable. Reads fresh every call: a cache here would add phase
-        lag, which is what makes this class of loop oscillate.
-
-        Timestamps are per-CHAIN, so a partitioned minority retargets on its
-        own chain independently — the behavior the no-feedback model lacked.
+        Computed from headers, deliberately NOT from chain difficulty (that
+        signal is integer-quantized at regtest scale and was the original
+        issue-#8 instability). Timestamps are per-CHAIN, so a partitioned
+        minority retargets on its own chain independently.
         """
-        if not self.daemon_rpc:
-            return self._daa_multiplier
         window = self.daa_window
-        if window <= 0:
+        if window <= 0 or not self.daemon_rpc:
             return 1.0
         try:
             info = self.daemon_rpc.get_info()
             height = int(info.get('height', 0))  # block COUNT (top index + 1)
         except Exception as e:
-            self.logger.debug(f"DAA: get_info failed ({e}); holding {self._daa_multiplier:.3f}")
-            return self._daa_multiplier
+            self.logger.debug(f"DAA: get_info failed ({e}); holding")
+            return self._daa_d.get(self._daa_last_height or 0, 1.0)
 
         top = height - 1
-        # Need a full window of real history. Below that the estimator would
-        # be reading warmup noise (the exact defect that made the old
-        # difficulty-based loop explode on seed 8).
-        if top < window:
+        if top <= self.daa_start:
             return 1.0
 
         # A shorter chain than last time means a reorg (e.g. the pop-blocks
-        # path after a late upgrade): drop cached timestamps and replay.
+        # path after a late upgrade): drop caches and replay from scratch.
         if self._daa_last_height is not None and top < self._daa_last_height:
             self.logger.debug(f"DAA: chain shortened {self._daa_last_height}->{top}, replaying")
             self._daa_ts.clear()
+            self._daa_d.clear()
             self._daa_last_height = None
-            self._daa_multiplier = 1.0
 
         def ts(h):
             cached = self._daa_ts.get(h)
@@ -361,30 +351,37 @@ class AutonomousMinerAgent(BaseAgent):
                 self._daa_ts[h] = cached
             return cached
 
-        start = window if self._daa_last_height is None else self._daa_last_height + 1
-        expected = window * TARGET_BLOCK_TIME_SECS
-        m = self._daa_multiplier
-        try:
-            for h in range(start, top + 1):
-                observed = ts(h) - ts(h - window)
-                if observed <= 0:
-                    continue
-                m = max(self.daa_min, min(self.daa_max,
-                                          m * ((expected / observed) ** self.daa_gain)))
-        except Exception as e:
-            self.logger.debug(f"DAA: header fetch failed ({e}); holding {self._daa_multiplier:.3f}")
-            return self._daa_multiplier
+        def d(h):
+            return self._daa_d.get(h, 1.0)  # d = 1 for all heights <= START
 
-        self._daa_multiplier = m
+        start = (self.daa_start + 1 if self._daa_last_height is None
+                 else self._daa_last_height + 1)
+        expected = window * TARGET_BLOCK_TIME_SECS
+        try:
+            # Replay: compute d[k] for every height up to top+1, so the value
+            # we return is the multiplier in force for the block being mined
+            # NOW (index top+1). Window for d[k] ends at block k-1.
+            for k in range(start, top + 2):
+                observed = ts(k - 1) - ts(k - 1 - window)
+                if observed <= 0:
+                    self._daa_d[k] = d(k - 1)
+                    continue
+                mean_d = sum(d(i) for i in range(k - window, k)) / window
+                nd = mean_d * expected / observed
+                self._daa_d[k] = max(self.daa_min, min(self.daa_max, nd))
+        except Exception as e:
+            self.logger.debug(f"DAA: header fetch failed ({e}); holding")
+            return d(self._daa_last_height + 1) if self._daa_last_height else 1.0
+
         self._daa_last_height = top
-        # Keep the replay cache bounded; only the trailing window is reused.
+        # Keep replay caches bounded; only the trailing window is reused.
         if len(self._daa_ts) > 4 * window:
-            for h in [k for k in self._daa_ts if k < top - 2 * window]:
+            for h in [k for k in self._daa_ts if k < top - 2 * window - 2]:
                 del self._daa_ts[h]
-        self.logger.debug(
-            f"DAA: replayed to {top} window={window} gain={self.daa_gain:.4f} "
-            f"multiplier={m:.3f}"
-        )
+            for h in [k for k in self._daa_d if k < top - 2 * window - 2]:
+                del self._daa_d[h]
+        m = d(top + 1)
+        self.logger.debug(f"DAA: replayed to {top} window={window} multiplier={m:.3f}")
         return m
 
     def _calculate_next_block_time(self) -> float:
@@ -593,10 +590,32 @@ class AutonomousMinerAgent(BaseAgent):
             
         # Calculate time until next block attempt
         next_block_time = self._calculate_next_block_time()
-        
-        # Sleep for calculated duration, checking for shutdown every second
+
+        # Sleep in slices, rescaling the REMAINING wait whenever the DAA
+        # multiplier moves. Without this, a wait sampled while m was high
+        # (an hour-plus for a small miner) blocks downward corrections until
+        # it expires — measured as a one-sided slow decay: the hashjoin
+        # battery run settled 28% slow (153.7s vs the 120s target) while the
+        # split run, whose stale waits were short, passed. Rescaling the
+        # remainder by m_new/m_old is exact for exponential waits
+        # (memorylessness + scaling), i.e. this samples the inhomogeneous
+        # Poisson process the time-varying rate implies.
         self.logger.debug(f"Waiting {next_block_time:.1f}s before next block attempt")
-        self.interruptible_sleep(next_block_time)
+        m_at_sample = self._daa_last_multiplier
+        remaining = next_block_time
+        SLICE = 30.0
+        while remaining > 0 and self.running:
+            self.interruptible_sleep(min(remaining, SLICE))
+            remaining -= SLICE
+            if remaining <= 0:
+                break
+            m_now = self._get_daa_multiplier()
+            if m_at_sample and m_now and abs(m_now - m_at_sample) / m_at_sample > 0.01:
+                remaining *= m_now / m_at_sample
+                self.logger.debug(
+                    f"DAA moved {m_at_sample:.3f}->{m_now:.3f}; "
+                    f"remaining wait rescaled to {remaining:.1f}s")
+                m_at_sample = m_now
         if not self.running:
             return 0.0
         
