@@ -102,7 +102,7 @@ under `general:`, NOT under `daemon_defaults:` or `wallet_defaults:`.
 | `fallback_seeds` | auto | How to host Monero's hardcoded fallback seed IPs (the 6 IPs baked into monerod at `net_node.inl`). NOT the same as `network.seed_nodes` (which is the explicit peer-discovery list for Hardcoded mode). `auto` = orchestrator injects 6 dedicated `monero-seed-NNN` daemon-only hosts pinned to those IPs (silences "no host exists" warnings). `custom` = user declares `monero-seed-NNN` agents themselves (lets them add offline phases, etc.). `off` = no seed hosts (legacy behavior). Leave at `auto` unless the user specifically asks otherwise. |
 | `node_implementations` | (omit) | OPTIONAL, for MIXED-implementation networks only. `{cuprated: <fraction>}` runs that fraction of ELIGIBLE nodes on cuprate (the Rust Monero node) instead of monerod. Eligible = relay and user nodes ONLY — miners and seed nodes are always monerod, because cuprate cannot mine. So the fraction applies to relays+users, NOT to the total agent count. Must be paired with `experimental_cuprate_boot: true`. **Omit this key entirely unless the user explicitly asks for cuprate.** |
 | `experimental_cuprate_boot` | (omit) | Required opt-in gate whenever `node_implementations` is present. Pointless on its own — never emit it without `node_implementations`, and never emit either unless cuprate was requested. |
-| `daemon_defaults.fakechain-hard-forks` | (omit) | OPTIONAL, HARD FORK scenarios only (request mentions "hard fork" / "network upgrade" / "fork at height"). A custom fork schedule string `"1:0,14:1,15:H"` where H is the activation height: **H = round(minutes_until_fork / 2.8)** (measured block cadence is ~2.8 min, not 2). Requires EVERY daemon to run the patched binary `monerod-hf` and the six `monero-seed-NNN` agents to be declared explicitly (see the hard fork example). Nodes that DON'T upgrade get a per-agent `daemon_options` override with the shorter schedule `"1:0,14:1"`. Never combine with `node_implementations` (cuprate cannot follow custom schedules). **Omit entirely unless a hard fork / network upgrade was requested.** |
+| `daemon_defaults.fakechain-hard-forks` | (omit) | OPTIONAL, HARD FORK scenarios only (request mentions "hard fork" / "network upgrade" / "fork at height"). A custom fork schedule string `"1:0,14:1,15:H"` where H is the activation height: **H = round(minutes_until_fork / 2.0)** (block cadence is ~2.0 min since v0.2.0). Requires EVERY daemon to run the patched binary `monerod-hf` and the six `monero-seed-NNN` agents to be declared explicitly (see the hard fork example). Nodes that DON'T upgrade get a per-agent `daemon_options` override with the shorter schedule `"1:0,14:1"`. Never combine with `node_implementations` (cuprate cannot follow custom schedules). **Omit entirely unless a hard fork / network upgrade was requested.** |
 
 IMPORTANT: `runahead`, `process_threads`, and `native_preemption` are Shadow simulator
 settings that go directly under `general:`. They are NOT daemon options and must NEVER
@@ -974,10 +974,10 @@ general:
     no-zmq: true
     non-interactive: true
     # --- Hard fork schedule (network upgrade v14 -> v15) ---
-    # Fork at hour 5 = 300 minutes; H = round(300 / 2.8) = 107.
+    # Fork at hour 5 = 300 minutes; H = round(300 / 2.0) = 150.
     # Every daemon below runs monerod-hf (the patched binary) — stock
     # monerod cannot parse this option.
-    fakechain-hard-forks: "1:0,14:1,15:107"
+    fakechain-hard-forks: "1:0,14:1,15:150"
   wallet_defaults:
     log-level: 1
 
@@ -1069,7 +1069,7 @@ agents:
    explicitly mentions a hard fork, network upgrade, or fork height. An
    ordinary scenario uses `daemon: monerod` and NO schedule key. When a hard
    fork IS requested, ALL of these together: (a) `fakechain-hard-forks` in
-   `daemon_defaults` with H = round(minutes_until_fork / 2.8); (b) EVERY
+   `daemon_defaults` with H = round(minutes_until_fork / 2.0); (b) EVERY
    agent with a daemon uses `daemon: monerod-hf`; (c) declare
    `monero-seed-{001..006}` with `daemon: monerod-hf`; (d) non-upgrading
    agents are a SEPARATE group with `daemon_options:

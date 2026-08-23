@@ -1,12 +1,12 @@
-# Late-joining hashrate test — measures chain cadence when total hashrate
-# jumps from 100 to 300 mid-run (GitHub issue #8 follow-up).
-#
-# Since the difficulty feedback was removed from miner pacing (ec973683),
-# each miner samples exponentially at (hashrate/100)/TARGET independently:
-#   0h-2h: miners 001-005 (sum 100)  -> expected aggregate ~2.0 min/block
-#   2h-4h: + miners 006-010 (sum 300) -> expected aggregate ~40 s/block
-# This config exists to MEASURE that distortion (real Monero would retarget
-# back toward 2 min); results feed the decision on registry-based pacing.
+# Late-joining hashrate test, 6h — the DAA validation vehicle (issue #8).
+# Total hashrate jumps from 100 to 300 at 2h; with the synthetic DAA
+# (default since 9394b098) the burst retargets back toward 2 min/block:
+#   0h-2h: miners 001-005 (sum 100)   -> ~2.0 min/block
+#   2h-6h: + miners 006-010 (sum 300) -> burst ~40 s/block, absorbed over
+#          ~2 windows (measured final-2h mean 133s, pre-registered bar
+#          110-140s; archive 20260822_224718_daa8_hashjoin)
+# With DAA_WINDOW=0 this instead measures the raw distortion: ~36 s/block
+# permanently (4h variant, archive 20260821_111847_hashjoin300).
 general:
   stop_time: 6h
   simulation_seed: 12345

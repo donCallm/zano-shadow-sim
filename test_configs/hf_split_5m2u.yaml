@@ -7,14 +7,14 @@
 # (the "exchange kept following the old chain" scenario), while the 80%
 # majority extends the v15 chain.
 #
-# Timeline (measured cadence ~2.8 min/block aggregate pre-fork):
-#   ~4h55m  height 105: chains diverge
+# Timeline (cadence 2.0 min/block aggregate pre-fork, v0.2.0+):
+#   ~5h     height 150: chains diverge
 #           - majority (4 miners, 80%): v15 blocks, ~2.5 min cadence
 #           - minority (miner-005, 20%): v14 blocks, ~10 min cadence
-#   6h      stop — majority ~30 more blocks, minority ~6 (80/20 split)
+#   6h      stop — majority ~24 more blocks, minority ~6 (80/20 split)
 #
 # Pass criteria:
-#   - both partitions grow PAST 105: majority nodes share one tip (v15),
+#   - both partitions grow PAST 150: majority nodes share one tip (v15),
 #     miner-005 + user-02 share a lower tip (v14) — two internally
 #     consistent chains
 #   - user-02 daemon log shows "Including transaction" AFTER the fork

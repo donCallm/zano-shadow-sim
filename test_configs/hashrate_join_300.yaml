@@ -4,7 +4,7 @@
 # History: with NO difficulty response (ec973683 era, DAA_WINDOW=0) this
 # measured the raw distortion — 36 s/block permanently after the join
 # (3.5x, archive 20260821_111847). With the synthetic DAA (default since
-# 7a88542e) the chain bursts and then retargets back toward 2 min; use
+# 9394b098) the chain bursts and then retargets back toward 2 min; use
 # hashrate_join_300_6h.yaml for validation, which has enough post-join
 # runway (~2 windows) to observe full recovery (final-2h 133s measured).
 general:

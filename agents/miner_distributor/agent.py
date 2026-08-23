@@ -1276,7 +1276,7 @@ class MinerDistributorAgent(BaseAgent):
                         self.logger.error(f"Transaction response missing tx_hash_list: {tx}")
                         return False, [], [r.get('id') for r in recipients]
 
-                tx_hash = tx_hash_list[0]  # Use first hash for recording
+                tx_hash = tx_hash_list[0]  # first hash, for log lines; recording uses the full list
                 num_splits = len(tx_hash_list)
                 if num_splits > 1:
                     self.logger.info(f"Transaction was split into {num_splits} parts: {tx_hash_list}")

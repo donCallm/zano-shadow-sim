@@ -105,7 +105,7 @@ nodes run cuprate is chosen by the fraction rather than per agent. The fraction 
 
 Hard forks are likewise opt-in (mention "hard fork" or "network upgrade"). The generator
 then emits the full recipe: `fakechain-hard-forks` in `daemon_defaults` with the fork
-height computed from the measured ~2.8 min block cadence, `daemon: monerod-hf` on every
+height computed from the ~2.0 min block cadence (2.8 before v0.2.0), `daemon: monerod-hf` on every
 daemon, the six seed hosts declared explicitly, and a separate agent group with the short
 schedule for whoever doesn't upgrade. Needs `monerod-hf` installed (`./setup.sh
 --hardfork`); see [Hard Fork Testing](HARDFORK_TESTING.md). Hard fork and cuprate cannot
