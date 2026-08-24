@@ -1,0 +1,41 @@
+general:
+  stop_time: 300s
+  seed: 12345
+  parallelism: 0
+  model_unblocked_syscall_latency: true
+  log_level: info
+  progress: true
+
+experimental:
+  use_dynamic_runahead: true
+  native_preemption_enabled: true
+
+network:
+  graph:
+    type: 1_gbit_switch
+
+hosts:
+  zano1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /home/user/zano/build/src/zanod
+        args:
+          - --data-dir=/tmp/zanosim/n1
+          - --no-predownload
+          - --disable-upnp
+          - --no-console
+          - --db-engine=lmdb
+          - --rpc-server-threads=2
+          - --p2p-server-threads=2
+          - --allow-local-ip
+          - --p2p-bind-ip=0.0.0.0
+          - --p2p-bind-port=11121
+          - --rpc-bind-ip=127.0.0.1
+          - --rpc-bind-port=11211
+          - --log-level=1
+        environment:
+          HOME: /home/user
+          MALLOC_ARENA_MAX: '1'
+        start_time: 1s
+        expected_final_state: running

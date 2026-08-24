@@ -1,0 +1,1002 @@
+[
+  {
+    "id": "staker-001",
+    "address": "ZxBjuAWRDFySG5VbYKsAiU1dnD8PMrq2gd9bqjn1qFAWYmEncneBBgwWC2m33x9g5bgPqgagXSgfs6gWWqGTAdjz2vZrzp36R",
+    "wallet_file": "/home/user/zanogen/stakers/staker-001.wallet"
+  },
+  {
+    "id": "staker-002",
+    "address": "ZxC3jkHn5Vn9yAaJQtQ6YYgxJ5k7CZHks7k1cBpZNhqd75UTnF6fe8h8ntAnBCeSEF6AjA9drSibs8tJrVXv2u6e2KWzMkZDH",
+    "wallet_file": "/home/user/zanogen/stakers/staker-002.wallet"
+  },
+  {
+    "id": "staker-003",
+    "address": "ZxD7TkA5KQsZMYGgjDtqsKBxcCxwAvEn2XYUbuYTh4YtcAsPaN8f2ABNAqMboEFofA78kaiYUdZuFdGYehVFtDw31osckHwAz",
+    "wallet_file": "/home/user/zanogen/stakers/staker-003.wallet"
+  },
+  {
+    "id": "staker-004",
+    "address": "ZxCSJrv4sAX1tJNDzipGfYXspnqqgFba8eJ2dPJQdUvuU5KHwUQPZtnfCtg3DBLwQHWAX2zuorz7jcCUfnimNbYW19qJHKqx1",
+    "wallet_file": "/home/user/zanogen/stakers/staker-004.wallet"
+  },
+  {
+    "id": "staker-005",
+    "address": "ZxD71tRjBGbaoeDcrq9XaoMrvfSwYYxT1TY9u5HLKYhZiW1WCVt3ZkdG1TdJuWpxXk8yGNBTCQPH2SvpoSagwKZN2gGWo8kiF",
+    "wallet_file": "/home/user/zanogen/stakers/staker-005.wallet"
+  },
+  {
+    "id": "staker-006",
+    "address": "ZxDCm7Vs8w35hxBMsGquqLERo84J9SVpcK9UuVkttzCJYKweCvCMtyGa1ZRWZV9CrfUyXW7oYznYQ3wyM2Pt3DeA31paLHCS9",
+    "wallet_file": "/home/user/zanogen/stakers/staker-006.wallet"
+  },
+  {
+    "id": "staker-007",
+    "address": "ZxC9E47579kNT9W41qk93fDz5FrHZRadJDd1CMx8zzWGYmrs37kD7MDYPJZm7zGGSa9UDaVaFu8hoLHAVefLhnaj2bvzY1cGN",
+    "wallet_file": "/home/user/zanogen/stakers/staker-007.wallet"
+  },
+  {
+    "id": "staker-008",
+    "address": "ZxCNr168rh15dBLgRQBqX6DeD7wDmadhmeBRwWWc6hh4HjPX3pKjtA8Vj1ddm5zfrxjU5WjtjuVuKGCkHXEcPRQd22ektU7Wb",
+    "wallet_file": "/home/user/zanogen/stakers/staker-008.wallet"
+  },
+  {
+    "id": "staker-009",
+    "address": "ZxD6ns2ZntCdbkwSvR3C3LFdDFYNMnopCbqGWeyeDqZg2AuxWHnyGBn6YeVQ4D85XT6Ufm4gSiJu3bC6eX6W5Fiu1svZXjMdW",
+    "wallet_file": "/home/user/zanogen/stakers/staker-009.wallet"
+  },
+  {
+    "id": "staker-010",
+    "address": "ZxCisF3Ggm26hehonEZ5uHPL1NHBnLqzJPyH5qB3voiNFshiUdJML8422YU6oFn821gxe8xuM9Y54iiz4JYgXMjS1ZkrqQ79G",
+    "wallet_file": "/home/user/zanogen/stakers/staker-010.wallet"
+  },
+  {
+    "id": "staker-011",
+    "address": "ZxCpnhZ1PZXAHrvrbTzTC6acYxrbCBb53ZAnSAefvkBgdfAt51wgnJq8Ufu1C29TGm7wHMmz8XqdpJV8NB8Z9ZCz2Jx5ysM33",
+    "wallet_file": "/home/user/zanogen/stakers/staker-011.wallet"
+  },
+  {
+    "id": "staker-012",
+    "address": "ZxDMY9AwZR4HSGsJjNnVpMbLDFRV7pupS6uC7cMigDyQCKxwpthRFy1d7srcawvK4WUXPKGjUYr5ZVNfxmh3dfhh1gHcizgew",
+    "wallet_file": "/home/user/zanogen/stakers/staker-012.wallet"
+  },
+  {
+    "id": "staker-013",
+    "address": "ZxDUNfvNKr8aAuUT2yvkXjSYfUcS2xqGY4VwbkXcEA66FyFCpMrdvrnah8uX7PNXM2PNcQg8pcNDPHS9kVtCWmhv24XzKvfq2",
+    "wallet_file": "/home/user/zanogen/stakers/staker-013.wallet"
+  },
+  {
+    "id": "staker-014",
+    "address": "ZxBtHF4yW7aX1BeB1U7qYURhA8h1dnCFB4gf9Rqz2iyf926K92PTzaKgraX4tfq9hrj5PiPjxEVQ6ERYAwUmqV2k26XDQvNty",
+    "wallet_file": "/home/user/zanogen/stakers/staker-014.wallet"
+  },
+  {
+    "id": "staker-015",
+    "address": "ZxDLsV8Zt2DeVyf12LdcMLBA2wbLJmWVYZ4FALLgTxyH6eJUUToQsKx16L4PUJdf98hvB6TM36JVQSKwkyWFNkPS2YLecN18e",
+    "wallet_file": "/home/user/zanogen/stakers/staker-015.wallet"
+  },
+  {
+    "id": "staker-016",
+    "address": "ZxCsw5qCo3cFTLuyKegTXt6WufpMPpmXhTjhexizZMSTMDQCYxiKSRUAcqtUVSYXReLWFMn4riy5aCqK3kzFEV9B3389Bayr3",
+    "wallet_file": "/home/user/zanogen/stakers/staker-016.wallet"
+  },
+  {
+    "id": "staker-017",
+    "address": "ZxCCsdaAG1o7HbwpWVkMJgUnJ4EPYS3U4WyPkRsp4jToQw1UVpt9GmV3rvcSc95ksk2CMtrtfYNw4fjBh9iKWAQR11gj16m55",
+    "wallet_file": "/home/user/zanogen/stakers/staker-017.wallet"
+  },
+  {
+    "id": "staker-018",
+    "address": "ZxDcozky8sQGLXNVriExuNZpCGMHWAXiA5qo1AovVL6qXLzHmkjqRWfR5wvBDTepyDLwh1ZFS33vWb25tJ1XXcvx1vfVaBXvV",
+    "wallet_file": "/home/user/zanogen/stakers/staker-018.wallet"
+  },
+  {
+    "id": "staker-019",
+    "address": "ZxC7rXKqTm5LL69FpmKvdhRxbh91GqCUDCLTfcRV6YqvFkYS9wAD3cqBsdwa62ztaVGuLv2yU55tYQryeLc6K4ue2vQSFZQSD",
+    "wallet_file": "/home/user/zanogen/stakers/staker-019.wallet"
+  },
+  {
+    "id": "staker-020",
+    "address": "ZxDNmnDycMyMPgffUaWRcT56mNAiQdTJU7hKYXqCGpNUhPBDwsrbW5fWWYKqBQRz2iSPr8L8CNfAxZeFMjB6i6BC2FpC2mN9r",
+    "wallet_file": "/home/user/zanogen/stakers/staker-020.wallet"
+  },
+  {
+    "id": "staker-021",
+    "address": "ZxCkq3R5pNL2H934ZKX24UZnRLPXnLZ2jS8VeX1BPctHGnVSUKDAV1u9eJ9JnGzbrCTSKAaTYXe9D5am5Sm841Q8278mthxnJ",
+    "wallet_file": "/home/user/zanogen/stakers/staker-021.wallet"
+  },
+  {
+    "id": "staker-022",
+    "address": "ZxDTjsMUqk6WqJ2QjFTs8kKmPjKEGrqn17ByNQXAAiR5R2Jgn4bDoT2LRvcPhzD9Vv21mUpxnuj1bE692KTP9wbQ34tndjqJP",
+    "wallet_file": "/home/user/zanogen/stakers/staker-022.wallet"
+  },
+  {
+    "id": "staker-023",
+    "address": "ZxD8nWdUPpe1AYsNPaQA8BQ8zYP4PXdZsQ6LhDes1qfegYSPcxHWLQVaSt4xH1T5DkW1pXpVcXurD3q4dchzSkf61ooEHUiQd",
+    "wallet_file": "/home/user/zanogen/stakers/staker-023.wallet"
+  },
+  {
+    "id": "staker-024",
+    "address": "ZxCJb52V7scHkNjA5GdGxHA5rd9kL9titiA7i3EcdpRo9yavAmrwhhr3n7R3qUhjBfHrStiGueSDfdDNuxDgVegv26T5LKVu2",
+    "wallet_file": "/home/user/zanogen/stakers/staker-024.wallet"
+  },
+  {
+    "id": "staker-025",
+    "address": "ZxD5625nNEq5UKDxyZ6UZT6s67MEkqm9CH85igU734xrVaXiGbWFb2ME1p9XRzU64q3E2ZZeczHNJ4RCczV8Bppr2bK1vW3j1",
+    "wallet_file": "/home/user/zanogen/stakers/staker-025.wallet"
+  },
+  {
+    "id": "staker-026",
+    "address": "ZxD4QutS7b6jpE9ukM1PCAixEQ7KQEJ9XPq6MRp6VHmBWNX2dYvtwJ5ACmopcRQeTrNMQTZnprnQv4athf9VMFar1cwtvB2BW",
+    "wallet_file": "/home/user/zanogen/stakers/staker-026.wallet"
+  },
+  {
+    "id": "staker-027",
+    "address": "ZxBj6mEqXRkHBn72tdFnTg7svfRWYbvryTNq6Cu5GizkhHxbzo6HdTp3mjFL3MQ94wiCiWKcoJaHfdBbSiAz95m51V8rgwkrJ",
+    "wallet_file": "/home/user/zanogen/stakers/staker-027.wallet"
+  },
+  {
+    "id": "staker-028",
+    "address": "ZxDRoFdqcsMbMnQtq6XUS3eN4zPFpkNP19URe2RpVUJc54wNfQU2QMyRdHqQ1GBLbdYewrSBNUxnG3hhT2UWm4Tw1eyJBdSsB",
+    "wallet_file": "/home/user/zanogen/stakers/staker-028.wallet"
+  },
+  {
+    "id": "staker-029",
+    "address": "ZxDj6tXz565aichx2waS1RRGSUcKJwJQXSR6nHkCa18bLxvYvWo3q1YCqiJHC13LQ4Q9YeDdYjQWeKNF5SJzofyi2M7EGanwM",
+    "wallet_file": "/home/user/zanogen/stakers/staker-029.wallet"
+  },
+  {
+    "id": "staker-030",
+    "address": "ZxCGgUfRqHC61S7JowGc3J2pzR167sSQGNuUbDGmx5YQAfEPGLy6E1QZ58epd5nrSwHGz3nuaA8JnYh7yFgdtyMU2GKMe8N22",
+    "wallet_file": "/home/user/zanogen/stakers/staker-030.wallet"
+  },
+  {
+    "id": "staker-031",
+    "address": "ZxCMZwqZTbjHV1UaGgeUXDN1a1gVMAW21fhDLrRwf8pLakXXHyhiC6ae7Fim4iKAvaha46DdAgX8qSR98qo2CfBY1puwwroCg",
+    "wallet_file": "/home/user/zanogen/stakers/staker-031.wallet"
+  },
+  {
+    "id": "staker-032",
+    "address": "ZxDWagkst9rDwmGF1YWfQVGKUM1GCrgKD6crsZwunBL8i4eVBx38uYkSTWSk2DkgvCdtLLtoS4T5fWgFXWxxZxjN1FUuguCs7",
+    "wallet_file": "/home/user/zanogen/stakers/staker-032.wallet"
+  },
+  {
+    "id": "staker-033",
+    "address": "ZxC6veuQV56JPvzaxYQb2WD6y5A4VsF9MTjf1ouWvHUzC9m664pnotHMgXmNdK9o8h2fUws7TWbVqTtYaMcQz6WN2Vi3bBmj6",
+    "wallet_file": "/home/user/zanogen/stakers/staker-033.wallet"
+  },
+  {
+    "id": "staker-034",
+    "address": "ZxBrenZaYvNQzPSeF8xfub34tGQDqdApsYnArCT7zgcxiwUdYhfL5ux55WCjvJBGJgUxERywYu1utgXS8Ei2rFbT1BhYimaxe",
+    "wallet_file": "/home/user/zanogen/stakers/staker-034.wallet"
+  },
+  {
+    "id": "staker-035",
+    "address": "ZxDKjnWtpgXd3giVD9FNaWbcEDCs45WCxZ2mmg3J2cCzgXWLqQ9jK3R5WYxDzmq7m6g9hQpnN1kR6ij5hTooZo5s2idZ3QkeR",
+    "wallet_file": "/home/user/zanogen/stakers/staker-035.wallet"
+  },
+  {
+    "id": "staker-036",
+    "address": "ZxDcC2C3hiyQkTJQ8Ha8o7exXZT4xC3pxUv4WrXs3Ry5ZWJdvVQwEDQBhqSdnXCU3aTd3a95FNuzhGRejuqDNd6A33cPymWmr",
+    "wallet_file": "/home/user/zanogen/stakers/staker-036.wallet"
+  },
+  {
+    "id": "staker-037",
+    "address": "ZxD3XKA7xHDe5LQnDgVdn8Ga4eoaHXC7MWBx9iGo5aUJ6KK17MSKWvC14tNeRdhCsk8e2LjLbzZZGDfhySoTgq791CdnftpmG",
+    "wallet_file": "/home/user/zanogen/stakers/staker-037.wallet"
+  },
+  {
+    "id": "staker-038",
+    "address": "ZxBtn9R3V7XMUwFEoT1CfDLCmS19xu9uf6bJf9hmHEPyev9cjgSTYB32EqpSZrtAR3hgh5UGQsTKGjW3pQae4r3w23dfFDUEU",
+    "wallet_file": "/home/user/zanogen/stakers/staker-038.wallet"
+  },
+  {
+    "id": "staker-039",
+    "address": "ZxDsUrRR8sqQrm6NmvtqZFDfKjAMAR53ocWQJ5pw5B56fKAD51iEHTbPJUzAFv57j5ReeAox4sAvQSysBkEw3fbP1KNJ6H2NE",
+    "wallet_file": "/home/user/zanogen/stakers/staker-039.wallet"
+  },
+  {
+    "id": "staker-040",
+    "address": "ZxDZLkvuJbpj8ZRdoPY9Bx2gJzkbRFmiUNoPSZ8nL7pT3PBmQUGqhPDQ8jyTzvScdPULceqRwJVnNUR5N5mJb9Dk2PDR2DqQR",
+    "wallet_file": "/home/user/zanogen/stakers/staker-040.wallet"
+  },
+  {
+    "id": "staker-041",
+    "address": "ZxCGVbwLcbyUuXKSZ2hs5La8AnLLkh4rfEipcDvQktXvaYQEd5tBrgqCZHGSGuwE4QDpUVwwU1MHaFsuKbgeXAFR39P9gi6SA",
+    "wallet_file": "/home/user/zanogen/stakers/staker-041.wallet"
+  },
+  {
+    "id": "staker-042",
+    "address": "ZxCzDezguY32yzhx5jheYQ2ZMicMspfNzNvbbtL2DTDWEXXL1nQSvP9JD2Q8V6hL9w7J4eHfuPaW12Gu3Ux2eoFU1BG34M8oP",
+    "wallet_file": "/home/user/zanogen/stakers/staker-042.wallet"
+  },
+  {
+    "id": "staker-043",
+    "address": "ZxCFJWGsiwWch6wT4gHU7DBvY18EvrRGfESDqJuro1hGcZs785rcVmPFHEDFqiDmZpXgKoWr4zWgFX1R18S33Aec1V7qrSX3t",
+    "wallet_file": "/home/user/zanogen/stakers/staker-043.wallet"
+  },
+  {
+    "id": "staker-044",
+    "address": "ZxDVwJi2PacAktju3TKNmzajHK8wUKP5bC3GFG1zV1nj9vezDVctJHH8fQVzpoDGJ9E6QekkB7rsQQ2EpPunra3a1LpQgHWTT",
+    "wallet_file": "/home/user/zanogen/stakers/staker-044.wallet"
+  },
+  {
+    "id": "staker-045",
+    "address": "ZxCHPSp2xr1LfSaT38NSN7DpzSF1ydCoCFjkxAB5fL6JZV5B1DPDyFqPrf1XaSz9w7UWMV5zU93ESB8RjaqVYzRJ11naL5jdj",
+    "wallet_file": "/home/user/zanogen/stakers/staker-045.wallet"
+  },
+  {
+    "id": "staker-046",
+    "address": "ZxBrp2SgQTRRF1ykokd42SUac22E6y74Y7K4pMD7eTohdYx3TXQ1jByihG2UWCs3uK6XqLjb5cXEHCZiwCvTERw81FgNd9PNP",
+    "wallet_file": "/home/user/zanogen/stakers/staker-046.wallet"
+  },
+  {
+    "id": "staker-047",
+    "address": "ZxDKNzjveJmJoikejxrD4xZ7rwfYc63hpUpRc57b5wzh5KZXGjWmgvEMC8sGfH2kd9Mjfdwny2sFMSToapnL4DME2T1EeZ4m1",
+    "wallet_file": "/home/user/zanogen/stakers/staker-047.wallet"
+  },
+  {
+    "id": "staker-048",
+    "address": "ZxBkAx5AJumExWCn56wjfaLBxpjUdFc3vViAdUkcNPnmLDEQyKXXwR7dpNKpSxAWKDXXasSgrEFeQGnY7b4EwkYm2kpmBTsUw",
+    "wallet_file": "/home/user/zanogen/stakers/staker-048.wallet"
+  },
+  {
+    "id": "staker-049",
+    "address": "ZxByREP9zj1ScpiYwCdj74dTyJhx7FRr2ivXomX4GS9QVrwDd434GRPckjajaoksxxHNEvZi1QmrWfdBUZD69AYh1FSDZ2waf",
+    "wallet_file": "/home/user/zanogen/stakers/staker-049.wallet"
+  },
+  {
+    "id": "staker-050",
+    "address": "ZxCPKrJxcxk9hfarSQc4tSDpCarLQUxmzfDFT5WFmacFXmbg3hAZyt21wVkKC4zdwtj7KfhXhowsp62CwxiS7z1Z1qYvAvFcs",
+    "wallet_file": "/home/user/zanogen/stakers/staker-050.wallet"
+  },
+  {
+    "id": "staker-051",
+    "address": "ZxBida5C3n6ZJTLFkLWK3w2YWVLrsDjaGNaWcziQGFykKiMVrwbTs48DeVEL84ecJvL1e4paddoWnj6wRWLmTnFP26RadSuKw",
+    "wallet_file": "/home/user/zanogen/stakers/staker-051.wallet"
+  },
+  {
+    "id": "staker-052",
+    "address": "ZxCnxDAAZ3RBKTCctRgAhFDoDaPXjBSMe49xMLVX3YNKVcj9h9ype4HMajwtMEMtovdCrC9MdoJRscEgg3q2T3XA2mCR7tGam",
+    "wallet_file": "/home/user/zanogen/stakers/staker-052.wallet"
+  },
+  {
+    "id": "staker-053",
+    "address": "ZxByCwDHGuyg6MmhLS1gTLeMdp3hER6DfGM5oZid2FCVYFZTmqkhVmCDjMt4Wu1Rn5Zr3uZsZZwfu6Vjaqebq7jb1MXM1dqTA",
+    "wallet_file": "/home/user/zanogen/stakers/staker-053.wallet"
+  },
+  {
+    "id": "staker-054",
+    "address": "ZxBpAjhNTSQPmwAfLwk4CTNKVtZqXxLs1Z6rUrPVKHYUiMC2Ec3PtC1fCggW1U9qWcZi9rmMXFLnRPC3Fme1qR9C1DCZkK3Zc",
+    "wallet_file": "/home/user/zanogen/stakers/staker-054.wallet"
+  },
+  {
+    "id": "staker-055",
+    "address": "ZxCWQT6rWhVcZbJJk9wBBz55kkF9JoMmVfagfuvp3NMSM6EF1LKiLK3SvKHwtKEDrCeVtK7SyHSce863LZsNz3uN2GDPmbD95",
+    "wallet_file": "/home/user/zanogen/stakers/staker-055.wallet"
+  },
+  {
+    "id": "staker-056",
+    "address": "ZxBn548nj9bEtKEJ62smPGdQXqfCdhrzg68ggVjesZYZNAV8HkbmdTuSPWTfZ37ScWcnY5FHovM6F6UxXpgF1Kxd1NMVaqd2Y",
+    "wallet_file": "/home/user/zanogen/stakers/staker-056.wallet"
+  },
+  {
+    "id": "staker-057",
+    "address": "ZxDbcrXGRUYZYCFE5dnW6nfYm3zUmjCfDGPWkzmbJ1A13UNX1DxmAXX2NdwmenswpX15avaiyujdaMgcBG8MrJmm2dZAySsfn",
+    "wallet_file": "/home/user/zanogen/stakers/staker-057.wallet"
+  },
+  {
+    "id": "staker-058",
+    "address": "ZxCfMfzohpB4wVW9okicZsTUXY66BKjXDiDGp1yMQ1us1ieKzpsLJK8941eAERWECQcJ16vUZcJ9KS1EDc3pmv9d1Nzb2rwaf",
+    "wallet_file": "/home/user/zanogen/stakers/staker-058.wallet"
+  },
+  {
+    "id": "staker-059",
+    "address": "ZxDR4HjseN7PFUVU8XYq6GeTMWdQqBCpjbpJQ9uNPGmdjPHN5FRbWbwKEVLbeEdxSseQrGr1Jfe17b5BX39dFq5r1yieW5zLQ",
+    "wallet_file": "/home/user/zanogen/stakers/staker-059.wallet"
+  },
+  {
+    "id": "staker-060",
+    "address": "ZxBm68HLi2gG9523DYisM2NTBExBVXt4sMeHaicpJ4te4JD1L1PNpb9XupRWKoFsQTgi5xwxfPhupfh9TNG2gCj32HaqDPuWs",
+    "wallet_file": "/home/user/zanogen/stakers/staker-060.wallet"
+  },
+  {
+    "id": "staker-061",
+    "address": "ZxBkvXTc8q5FxiDmvHwoxZBHTjRtugutB1bT8hJARXGBhF9bqmb22WCWNNotvhwePP77R11SvGDcAgnNf6UoHD8u1u6FhbL6p",
+    "wallet_file": "/home/user/zanogen/stakers/staker-061.wallet"
+  },
+  {
+    "id": "staker-062",
+    "address": "ZxDGBAY5VA9TLu7jAnBYse3YzP6gE6hsrSph1JfS443NAgDhDEccj371fLz6fNUNwej86MV4pX1EAMZw93sjw1U528UTGRAts",
+    "wallet_file": "/home/user/zanogen/stakers/staker-062.wallet"
+  },
+  {
+    "id": "staker-063",
+    "address": "ZxC6CAaVpQtTHbW1dBCspQS2cXmLYXqxsEB45gLDupFQUeAp3AQP486Q6d8ZTEQvn31yoSzTBXLAQgk5oHopqBSV2mgNxGtLX",
+    "wallet_file": "/home/user/zanogen/stakers/staker-063.wallet"
+  },
+  {
+    "id": "staker-064",
+    "address": "ZxCeUjeE9ph7eC4fBjSQKjaEEiNxsari7962dg2kKrKjhRGqjBez5i2NP34N4wreCYZNUCXsfHzUa3UEbqtScyrY25TBCRLYU",
+    "wallet_file": "/home/user/zanogen/stakers/staker-064.wallet"
+  },
+  {
+    "id": "staker-065",
+    "address": "ZxCP9nZiUvYPdKYytvSMb4iRFR5JojGD2ZgLEUxbHZYCeDeEtQJhjSGEXhGtZXK451Ygbx5WMskJt13rJWrhEz8j2AgbuSXcX",
+    "wallet_file": "/home/user/zanogen/stakers/staker-065.wallet"
+  },
+  {
+    "id": "staker-066",
+    "address": "ZxCfJGwsSTv5L7KpWpAFH19X5siNAMGdk2TxM4iUDbQuiY5nJSYuz6jGzDYSX6b7xYiifPBBWxv16ExbSazQEtKb14tapRhfH",
+    "wallet_file": "/home/user/zanogen/stakers/staker-066.wallet"
+  },
+  {
+    "id": "staker-067",
+    "address": "ZxBxFRSevCm4ZGAGxQdTK5ZapYjbneae1PUb99kUqKqK3Uk7noZdDLcGzYapNHqxMMhi6fGyXs1MwcHEYRgwkax91xU1pN9RA",
+    "wallet_file": "/home/user/zanogen/stakers/staker-067.wallet"
+  },
+  {
+    "id": "staker-068",
+    "address": "ZxCtGDFj1XaZyzbFnEWuZPErq7189CEE9Q2YuGcMnaCdUoKxXaWsuMFFMDBsmpuLvZbRAoYsoTmZkadWTTbjs9ab1Jn1M3LiU",
+    "wallet_file": "/home/user/zanogen/stakers/staker-068.wallet"
+  },
+  {
+    "id": "staker-069",
+    "address": "ZxCGA4x5M3DD6u2XUzq8LPFkZeWtjQtnNHAnucty37GXLRvLurXtTU7PAEWKsXFLc7EHTm5DBt8vBZdGSkxoz2Yx2sZv9UVDD",
+    "wallet_file": "/home/user/zanogen/stakers/staker-069.wallet"
+  },
+  {
+    "id": "staker-070",
+    "address": "ZxBt3DUG24A2CXjnw5Q6Hp3GWCDdGwVqwMXqcFUHkVjz9kiAct7S1Ga1z6KYeA2oZ5P9Jz4i9gSWbCeyFT1zbw5P1duhYWPZz",
+    "wallet_file": "/home/user/zanogen/stakers/staker-070.wallet"
+  },
+  {
+    "id": "staker-071",
+    "address": "ZxCsoWhM2nndX53nDkrQUm53m3i8HNhv9MzV4g6Ty2wvRmrs87bYacAPf7X9uMYUWKYqoNs9vQNdQ1sGutovtxvv2yCLcwCpN",
+    "wallet_file": "/home/user/zanogen/stakers/staker-071.wallet"
+  },
+  {
+    "id": "staker-072",
+    "address": "ZxBvaidSc8NcpLP2EWYUApSfzDpHvpe6QQKg1PFvizrXPzaLB2xoXcVUyiN59m6bUkA3dxq46N7kQfiKC7LCx9St2K6e4ut9r",
+    "wallet_file": "/home/user/zanogen/stakers/staker-072.wallet"
+  },
+  {
+    "id": "staker-073",
+    "address": "ZxD91g8xefe3s9iUw1oDnL63zNaAV8a3N6sLYp3RJaCxE3VkiH8UiEm5zyPDnDg4j5UcXecQbymoqZXXWJKVwmFF2a2kd54nx",
+    "wallet_file": "/home/user/zanogen/stakers/staker-073.wallet"
+  },
+  {
+    "id": "staker-074",
+    "address": "ZxBkPWJUwTt9sD59oUEnVwhvKdqfXVHRyNcrEobx2pHDGF8HkQs9toc7uxZw6FKfQGNQBpAxraFehYNA9pUBbxRT2q3ryMuCh",
+    "wallet_file": "/home/user/zanogen/stakers/staker-074.wallet"
+  },
+  {
+    "id": "staker-075",
+    "address": "ZxDHKxpQtTkFunE7eNdPZ1KKfVsSaAMXkgKYTSmor1XCYniCnFjePqEV838ngF1R3XYTWjhdE2qjZgFq49YJt7w82K29Z1SD5",
+    "wallet_file": "/home/user/zanogen/stakers/staker-075.wallet"
+  },
+  {
+    "id": "staker-076",
+    "address": "ZxCDQnAmjR8jUAdbRa5ftpToYX1iHkiDr6qcpLTQZmf8BFbmNTREriXQUxoTBjrc9NJEnuMjJrPDaXdo4Uqrsa611wqaisaNh",
+    "wallet_file": "/home/user/zanogen/stakers/staker-076.wallet"
+  },
+  {
+    "id": "staker-077",
+    "address": "ZxC8DzpWNU4idZbCsEnmPDEgWk8BMYkv7UutqMu6GtKjPLSSBj6MJQUhuTTPnzkwoYMnf8Y7BC6pY7txVWbDSz9p36kHqnneT",
+    "wallet_file": "/home/user/zanogen/stakers/staker-077.wallet"
+  },
+  {
+    "id": "staker-078",
+    "address": "ZxD5ExrzkkxA3a7b175YGf2X3bnwCeSfNbjtKQ8zLHuyKQd1zFTF157Vu9N7GvKmNCeDo6YCmmezeTkaSAqEQHQo1omy8G6ks",
+    "wallet_file": "/home/user/zanogen/stakers/staker-078.wallet"
+  },
+  {
+    "id": "staker-079",
+    "address": "ZxCskZqH2MJ2GMfWBjuyhna74KjUqXKi5gceBWJG2zJLamUvNWdtLNQBG8nCVgx4kv3yLGgU3DEbp7gQr2Be7dSk31WzLSfX1",
+    "wallet_file": "/home/user/zanogen/stakers/staker-079.wallet"
+  },
+  {
+    "id": "staker-080",
+    "address": "ZxDVXjHMhG9Ht2DMyQhv4jCAReYXUGwvtYEAnpYCAh8L2aiXzCrp3mSLGATM8xb4iME1d9cp7fSY179mw1CNMidG2vW2wvyzK",
+    "wallet_file": "/home/user/zanogen/stakers/staker-080.wallet"
+  },
+  {
+    "id": "staker-081",
+    "address": "ZxC7LHrfQHSZ7VJScEkCMP5gAUCX4r8fXKpVyaU5tVrVgxexTBfaWYp1efidg4rtRbE7eyuUCsNNQNvw9tG4y11d38wyGZFwz",
+    "wallet_file": "/home/user/zanogen/stakers/staker-081.wallet"
+  },
+  {
+    "id": "staker-082",
+    "address": "ZxCCLZT4LVg6Ea6chpDfWAhRostve7tMBX6JBTAkf7PNdtcpaneS9vcZYk6hqymo2LKDdc7NgkXcThob6PjJTY1e1FvaJGdXo",
+    "wallet_file": "/home/user/zanogen/stakers/staker-082.wallet"
+  },
+  {
+    "id": "staker-083",
+    "address": "ZxDeWTJ4vrVBFF2Mz4LNdrekZjZmhAMnh7pmuVUrAdg7j7RdWXiC5Qx5fwZQrxKMVnisZYnEaAJ2FanaqbLPn8d219JRMHL95",
+    "wallet_file": "/home/user/zanogen/stakers/staker-083.wallet"
+  },
+  {
+    "id": "staker-084",
+    "address": "ZxCReZSMG5vWtus5nvDTSx77R3w3Nhph3Squ7SmcokU7csqSQgU6Jygj3RcKGDwwxeLr9CV2QX5p96qqyyAAF72H39u6t13TM",
+    "wallet_file": "/home/user/zanogen/stakers/staker-084.wallet"
+  },
+  {
+    "id": "staker-085",
+    "address": "ZxDngFaiXR2YwvML42FeXu9TSGxDVFKrL79rnf5AombgZYKSxwmWAepPQRRnQQXSr6DUG9RiqyEKZ8eWJwqo2MT62gBZVrKfG",
+    "wallet_file": "/home/user/zanogen/stakers/staker-085.wallet"
+  },
+  {
+    "id": "staker-086",
+    "address": "ZxCQxxDRjK5ZxvWPybNz5mZ7jDvN8i6Vx7q4d6ntTtKfK3Ee8EQUAbRb24d6B8t9PBCFY3Qjk1hwAQUU1ri1G1S71jVwcjkju",
+    "wallet_file": "/home/user/zanogen/stakers/staker-086.wallet"
+  },
+  {
+    "id": "staker-087",
+    "address": "ZxDASm6Eir3Bh5yHuyTJctFS2HRdxx291Grx1ytfUzL9N6MYRcTuPi5j76bKYZKJNeEX4qAgDBFvhSTFZgQMLhX32bHqLHzgm",
+    "wallet_file": "/home/user/zanogen/stakers/staker-087.wallet"
+  },
+  {
+    "id": "staker-088",
+    "address": "ZxBwAfguS5sZnnBxfezMoAN1WRN4kR9V8ZZrcG66Yfd5dNTSMKW2fvfRUAeJZ86C7Jdj2PDFss8KrNSTQpKmsUbh38prsvdKb",
+    "wallet_file": "/home/user/zanogen/stakers/staker-088.wallet"
+  },
+  {
+    "id": "staker-089",
+    "address": "ZxDD1Mrfb9F4HMuSrim3HT73pLAJo1ungVpNSrQPhwrT3Guf9U6dv2z5o8M7fFUmd5LSYGG2QDsp7FJvinMu82Xa25FtGQopm",
+    "wallet_file": "/home/user/zanogen/stakers/staker-089.wallet"
+  },
+  {
+    "id": "staker-090",
+    "address": "ZxCr2RiUAKie4bQwX9NKm8hynpk8BpZeoVPpBrgDXqNTHEsguEYJyDPRwV2L3xCbFwDeohn8CyQzME7empQ9MzXH1o7jQyeQD",
+    "wallet_file": "/home/user/zanogen/stakers/staker-090.wallet"
+  },
+  {
+    "id": "staker-091",
+    "address": "ZxD9PiknakfekvDusyX9ySRqbxG7sNoQrgGYZDE9kpaG7NUD33k84DoQGhMW6LN4gt5B7thw5SXbK7JxzZccyk5336Nr2FWoB",
+    "wallet_file": "/home/user/zanogen/stakers/staker-091.wallet"
+  },
+  {
+    "id": "staker-092",
+    "address": "ZxCpqT3EqbyhdpbqQ1DtPWfsw8CLNpZbLTWnVS8FAa9WfudFNK41rSLfgSwAgQKtDEHMwGLumKepsdzqWixtC9yq37JrX7MF6",
+    "wallet_file": "/home/user/zanogen/stakers/staker-092.wallet"
+  },
+  {
+    "id": "staker-093",
+    "address": "ZxD2n471v3Zam3w9ejfD2h6bF4MjEPBQvKLp8z6yz4fXToYY77eMWc5LJDuFSCEY2LPkViAa1cQhLdVQNejXuXaY1227WXhcW",
+    "wallet_file": "/home/user/zanogen/stakers/staker-093.wallet"
+  },
+  {
+    "id": "staker-094",
+    "address": "ZxCF31hQ7tPM7skh7ra6ifH74CMKtTy8GVYL2HnDxC3H6XVfuiy2H6ihSBZ136QA12JpgxGt5HpYb8xfeELVc3mL27myQgND3",
+    "wallet_file": "/home/user/zanogen/stakers/staker-094.wallet"
+  },
+  {
+    "id": "staker-095",
+    "address": "ZxCXJVZP5JXLhMAif6cEwrhaLmRzK8LMq3VBUcws7H8rJyqHh5LNBY5gSF8dtAQEtehYGqgoXisGLG7wEqXJ7h1B1eMwSbsVn",
+    "wallet_file": "/home/user/zanogen/stakers/staker-095.wallet"
+  },
+  {
+    "id": "staker-096",
+    "address": "ZxCA3S2iwePMbTZHUhu6j5eL9pt8bndjibLtWjvDMRiv9a9fNeZkVMMaK7XFxdgB1vYWXxrcxtT9UQJLhhr9VqwF21wtJtYbf",
+    "wallet_file": "/home/user/zanogen/stakers/staker-096.wallet"
+  },
+  {
+    "id": "staker-097",
+    "address": "ZxDaaijS9v1WC17NGU2nGHBrPUvND4rUSKyStJU8BaHuAMp1qFnfsaGgBiwLg4Xv8NayY5Fa2Rjz4FcBeSwg2TJf2g2SByCYt",
+    "wallet_file": "/home/user/zanogen/stakers/staker-097.wallet"
+  },
+  {
+    "id": "staker-098",
+    "address": "ZxCAT4hxWnvjaspDrzgvfEGUgyfSGFSucUscZrcxahghiSymie9nXwfdSEsZhant7Y1o9ZwK3F8gy57pCdhTGYZW2NJoPqyKs",
+    "wallet_file": "/home/user/zanogen/stakers/staker-098.wallet"
+  },
+  {
+    "id": "staker-099",
+    "address": "ZxD9LgLepAYJ8it5PATp2UJpwEHDe2PdGCSymx5BzJbWbeWqZPjnbryAe3kWDmboWjBfkYRBg3y8f9WHYXc2g4pS2P56dSdR7",
+    "wallet_file": "/home/user/zanogen/stakers/staker-099.wallet"
+  },
+  {
+    "id": "staker-100",
+    "address": "ZxByaETj2gHbSjV479J7FiL2THkpNGWf8VNZaX6QyT43CwWS132YMJCPkXX18R6ZtVXLLJsr2gaWMWkwGjAt75Ly2o3j38yzX",
+    "wallet_file": "/home/user/zanogen/stakers/staker-100.wallet"
+  },
+  {
+    "id": "staker-101",
+    "address": "ZxDsD96VaJjM64q2aszHGfgmsSaiMK3WuP4DiaHp7m1nKC19tQk2DPJed9GjPgrBzBBJsU9qs3aAfc2EbgVSSo3N2aPngKCvH",
+    "wallet_file": "/home/user/zanogen/stakers/staker-101.wallet"
+  },
+  {
+    "id": "staker-102",
+    "address": "ZxDUN3oMu23HNBDcsVH97H91gDtuiB2X6XfZon7joq47AXkgjwaMa2hEG58rwsLoB5BWgfvReE5DLP8s9gVhaWKf2PJcTGoKN",
+    "wallet_file": "/home/user/zanogen/stakers/staker-102.wallet"
+  },
+  {
+    "id": "staker-103",
+    "address": "ZxCBxwSdkotRr97rwoJvqYP4SjNU5UQQaBFKLJAyC6jXGK7daxPGP2f4nmVLrZAwxSUqtRzjPPoSvK8bhnzgN76i2WpA919hM",
+    "wallet_file": "/home/user/zanogen/stakers/staker-103.wallet"
+  },
+  {
+    "id": "staker-104",
+    "address": "ZxDDUtChhe9EPbXkEYhdyR58BaZJyhGhVZq3g9QrN1kofcqtkpw6bZv53DB2XDrJaiNvgyF2uZzNuUysrsGE3WEA1WWdzC9S2",
+    "wallet_file": "/home/user/zanogen/stakers/staker-104.wallet"
+  },
+  {
+    "id": "staker-105",
+    "address": "ZxDXJB67xJC4j6bZfFB4HXeWoNKiPva4YioMtoR5SmS8N31gmuqmnDLH4g81iW8ZDJ5AQXBiWX1yjeN8BK5JfvQT2TxqzTBLa",
+    "wallet_file": "/home/user/zanogen/stakers/staker-105.wallet"
+  },
+  {
+    "id": "staker-106",
+    "address": "ZxDc7ZT5qqU1hgW6JHPLBk5U7uHnYjtTN8fZCcEXbrvmA7qshSFpDQfYwPRbcEzJGjCPpETs1UGrKY7x1Lr7QhiR26vqbvifR",
+    "wallet_file": "/home/user/zanogen/stakers/staker-106.wallet"
+  },
+  {
+    "id": "staker-107",
+    "address": "ZxCbBA46sfbSZbhDhNf5ffiw3N5FBJ4zgGPSj1gv9cQdbC6ixMrq9dR1FGUym9JHXQPryrsTgekSTaMz9H6bkXa71gM93LRQA",
+    "wallet_file": "/home/user/zanogen/stakers/staker-107.wallet"
+  },
+  {
+    "id": "staker-108",
+    "address": "ZxCWtzyFWDiWNrkzmnwgp4WLrabgk6QTfD7q5vZik6XJUJ5YvXcC1HM9AywSSLuFNi2TADFVfgqrwSKfw8unD5sx2ZS46Wcgc",
+    "wallet_file": "/home/user/zanogen/stakers/staker-108.wallet"
+  },
+  {
+    "id": "staker-109",
+    "address": "ZxC58H3RMbk3nkgsNbDaYB27LGFxqGpP6Lq5kwXeJCZfCzTi4UdZKaKRBosnXUND4G7aWeLaEpp5SAm5vZaTbS2Y22QsiFD8y",
+    "wallet_file": "/home/user/zanogen/stakers/staker-109.wallet"
+  },
+  {
+    "id": "staker-110",
+    "address": "ZxC2n6R3xgx511527TkFffTKxJbfDsjrkNSfiB5uCnqdKwqHfVGWGCSiAqBQiciQqxRiQZJCn7wtBRDj93vKdTza2WXNF3kF9",
+    "wallet_file": "/home/user/zanogen/stakers/staker-110.wallet"
+  },
+  {
+    "id": "staker-111",
+    "address": "ZxCmK8DkMGW5c9Pc5CmZuaPKygehRi4itTX2dD7yVsdqSkyd56QrDy3fkwXSUHJ2gJCVPwTEzYjpeiiZqMMXvNee2UYDV9gms",
+    "wallet_file": "/home/user/zanogen/stakers/staker-111.wallet"
+  },
+  {
+    "id": "staker-112",
+    "address": "ZxDpSSns1XXAaDh5KwtdvyUSde7teEn6iJoq7dj9N474XfURw1Zqda7WW8RT8hmPuh3H1P6w3eho2RdhHN5vTaWP19XEMZUiU",
+    "wallet_file": "/home/user/zanogen/stakers/staker-112.wallet"
+  },
+  {
+    "id": "staker-113",
+    "address": "ZxBiU2FYV4KBQ8H5a2z7q3TydUrMDag2cFJwou5zULLyNgQN1TyqX4U1JQungM9YMVcqf7mAADQEuVk1WuratYNy11mq1D3RG",
+    "wallet_file": "/home/user/zanogen/stakers/staker-113.wallet"
+  },
+  {
+    "id": "staker-114",
+    "address": "ZxCUsFG4zVxKjiZzA3X1uZjesZr6ca86aCMy6MTbF2VtWe3gZucjggH8f6xG7Zif3AHqR36ztvRqe8hPRP9xuRZp1eX2nthos",
+    "wallet_file": "/home/user/zanogen/stakers/staker-114.wallet"
+  },
+  {
+    "id": "staker-115",
+    "address": "ZxD4DRdQNqTGy6EMp4YpVuL7NwF9syQUELH8VZ1gBGrUFb2MJyTzNW8PfpMeMWAPcqEtuJHHFfX48XTSwbdqmwWM1nv4yujrq",
+    "wallet_file": "/home/user/zanogen/stakers/staker-115.wallet"
+  },
+  {
+    "id": "staker-116",
+    "address": "ZxC4srPmW7RG93BzPZX9jbThkDd4fSkYK4Pri742y2jVWjvCnhqFj5GBo3QWqcrhaheBxR7yEtkQ2eut1DVR3VFD2F4srMMPC",
+    "wallet_file": "/home/user/zanogen/stakers/staker-116.wallet"
+  },
+  {
+    "id": "staker-117",
+    "address": "ZxCy7t5PvuiRVzUEvTaAFqfQPBb1Hu8wxLWDDFUBrecvFxnUnNUfvZa1GsNF3n8ctLfN5mfsrwvDyFVEcvKSCuz31wWJE3RgW",
+    "wallet_file": "/home/user/zanogen/stakers/staker-117.wallet"
+  },
+  {
+    "id": "staker-118",
+    "address": "ZxDBJpoEJcc9jp83m1D2dtiL1atKF8ZvzFs1qE4kgzbc7qrSuf8ahFUR8ZXBspiaJj4MT3eTmMwa7ibAisZGmfNz2ZnJZ6siF",
+    "wallet_file": "/home/user/zanogen/stakers/staker-118.wallet"
+  },
+  {
+    "id": "staker-119",
+    "address": "ZxCLfkF5Zzj6Zd7TeX5baUJz7EQ3ZbNeBiTgvNuJxHsUKYCvDGQfqdcUncqEJNbBCb5m3zPXkfN5qaiMLCB5iJaw1Vepp7Kaw",
+    "wallet_file": "/home/user/zanogen/stakers/staker-119.wallet"
+  },
+  {
+    "id": "staker-120",
+    "address": "ZxDm1qXmfDa7L8GFgQjAcBU1s8hCbaf2FcGWXmZyMa17JuHymkrQCAQ6fj6rWmQVvU8C3KByqVajR74gTRtk1EvQ1QSCP6KRy",
+    "wallet_file": "/home/user/zanogen/stakers/staker-120.wallet"
+  },
+  {
+    "id": "staker-121",
+    "address": "ZxDCdQHKGSP7q1itch35hm8NfcnVqoohCd3vf3qS2sW9LVZuCbMpF7CiesGQFrbVUxa2Y4XJgGAyURq3AA7CRQFQ17ZoTbm2w",
+    "wallet_file": "/home/user/zanogen/stakers/staker-121.wallet"
+  },
+  {
+    "id": "staker-122",
+    "address": "ZxDpjWWGQm1WtqLs6wDKdSFX6q5R4exm2ChXNwShtsWtEempotMohiicqvgDmxUmNFKtBQtfrmzwsLjHTVTnjJjN35TogSLqd",
+    "wallet_file": "/home/user/zanogen/stakers/staker-122.wallet"
+  },
+  {
+    "id": "staker-123",
+    "address": "ZxCvkaCMiFeY7KmDZ7YG32GF6cq9hPXyEJdW6ePN4JeYEmkjmkve7X4K63jwQ31GniNPd4bPH14ebKTyXmZFwbsC1QzcP5Ygf",
+    "wallet_file": "/home/user/zanogen/stakers/staker-123.wallet"
+  },
+  {
+    "id": "staker-124",
+    "address": "ZxCvu4MTHbTetPvkWqL2xMfYJaPTmy1Yp2f57TkEK4YCMBm9vPtjJgtU1ahAkwd8MC5TwkBcieLPCVkHRP8o31MD1Lngnpbsd",
+    "wallet_file": "/home/user/zanogen/stakers/staker-124.wallet"
+  },
+  {
+    "id": "staker-125",
+    "address": "ZxCN5nA3qMV8PtsG349GPxcVs5Zv1kboF7kDD7b8W92eev4NcpZ6hX5H7KkeUhjzaA3xn185TPXU6WG7EZLuBN3s1wtzdMpZ4",
+    "wallet_file": "/home/user/zanogen/stakers/staker-125.wallet"
+  },
+  {
+    "id": "staker-126",
+    "address": "ZxCx2FwNhi6J53HDWsg4B8eSJPTVhHfbDBErpdvdyoWw4FcKBAyGzaaSqVQSr4cEqH26xqy9iPyzyP8Fg7gqhufM1NoGyUs2u",
+    "wallet_file": "/home/user/zanogen/stakers/staker-126.wallet"
+  },
+  {
+    "id": "staker-127",
+    "address": "ZxBj2gkCsX724CQi2BNnU4gNaPzRp6aJ64brGsDSd7KEAjNdqks7puCghpqsEE5RqgReacfcvoFiBZEq4Ld14WST2HpNvm1Du",
+    "wallet_file": "/home/user/zanogen/stakers/staker-127.wallet"
+  },
+  {
+    "id": "staker-128",
+    "address": "ZxCfN7ijwCn3N2D9oYQa68BcqmbxBcvTHStZoPrPXda999Q9oTthcwwAPTmKqTW9fdJLG81ktAh3u4dg3dCgPJMZ1WJp3ahzV",
+    "wallet_file": "/home/user/zanogen/stakers/staker-128.wallet"
+  },
+  {
+    "id": "staker-129",
+    "address": "ZxDBpfQ1yN9PZDXWCw4XPpCwCeJzzfNSXQCZSxGz1hbaMuvpekQMaPX7m17oU7RunVJfQGrZEU7Gn1gaHmT8NMqk2JsvVhREq",
+    "wallet_file": "/home/user/zanogen/stakers/staker-129.wallet"
+  },
+  {
+    "id": "staker-130",
+    "address": "ZxCoMEF3zUG12cqPyoPRJjF6sCWGBJv7BguNAZxQebjj5dqiN32S426W8irT4VMtn57RcHPHz4PpZSjFRhoj6dQ92QABM1jgu",
+    "wallet_file": "/home/user/zanogen/stakers/staker-130.wallet"
+  },
+  {
+    "id": "staker-131",
+    "address": "ZxCae6Up8yXLzUwdtMZQSBS8F1ByK35yrNRroVWpkJiBDFNWdEEs9XwEamoxiDaCm4iPsFMfwrUVxBUh5cGczeqq1KYR6TqL3",
+    "wallet_file": "/home/user/zanogen/stakers/staker-131.wallet"
+  },
+  {
+    "id": "staker-132",
+    "address": "ZxCrG3zRGcpYrpPPrCa5RZJ4owwwu9ib4ixFzBjj2zGPJMTt8eH6YGt2qFMYZnzWSwffitDC3o23R7jtvWkuofEP12d8X3ykd",
+    "wallet_file": "/home/user/zanogen/stakers/staker-132.wallet"
+  },
+  {
+    "id": "staker-133",
+    "address": "ZxCSY27NHgE3vK28Nnq5rjT7G953TV8fH1WAW2YSKa2RH5atTZtvgWPjYvkFvYMojiHbJ8fJXgYPR3VSN2bp1ApV15Le2Q2QH",
+    "wallet_file": "/home/user/zanogen/stakers/staker-133.wallet"
+  },
+  {
+    "id": "staker-134",
+    "address": "ZxBsFqsXzTxSPgNCD4pwZy1gNcGqLv561F6VthBcBC9HSVN99nYnRX8a1xvegYaC2q35kTj9nisV9PSsK2JAo5TP2U9DK4brW",
+    "wallet_file": "/home/user/zanogen/stakers/staker-134.wallet"
+  },
+  {
+    "id": "staker-135",
+    "address": "ZxD5vjau5XEHcC5uJ7tHSiEExepFmVDbKaNAZUkS7ghnhmyidCipvyy96RHzQDWJCb4VYRUEV9zEnSP72xWqvqM91DddmeQNa",
+    "wallet_file": "/home/user/zanogen/stakers/staker-135.wallet"
+  },
+  {
+    "id": "staker-136",
+    "address": "ZxCX1KdMx5zRx5uN1Vb61cHzRGyNTPZD5LGxdnddLP7wRyXdojF2gdzVw8xpVTPm1W7xFeTQjDHjmbaNr5yaKBqJ2vnDCr3vG",
+    "wallet_file": "/home/user/zanogen/stakers/staker-136.wallet"
+  },
+  {
+    "id": "staker-137",
+    "address": "ZxBpR7BdfWneRpYHXURJbLU9y5ff3p7QB1A3JTkq89GjhpHc4EWDPkaLWBJ9xZZpXS4AfwroHgfRuf8Kzsm7Ldzf1wH8Cg12Y",
+    "wallet_file": "/home/user/zanogen/stakers/staker-137.wallet"
+  },
+  {
+    "id": "staker-138",
+    "address": "ZxCNPqWqpLQbhrXnRyLoHZWfQU9T6CuvWb1GdFUBmvTs8ne3eVZgUexdvKHiL9PTAWCCGLYrnLmaJXA461BhAcZX2GkKjTSr2",
+    "wallet_file": "/home/user/zanogen/stakers/staker-138.wallet"
+  },
+  {
+    "id": "staker-139",
+    "address": "ZxCuj6qDaT97TCE2RGyR7tFVnPr6zWkGPA8s9PESNySh6Fs5eiXkQoHT19ekJ81kjbZdvFSsEXyrr3hLt2PQuyD92JhySp5NZ",
+    "wallet_file": "/home/user/zanogen/stakers/staker-139.wallet"
+  },
+  {
+    "id": "staker-140",
+    "address": "ZxD2CC3LUXuQSJokwV6wF4jmXitsSpXk5fqw9sNArSmQexBAmwrmDTCEzcxrQJ41jiRAk18xdQjg7jh9GppPGjYb2bLnD7u3A",
+    "wallet_file": "/home/user/zanogen/stakers/staker-140.wallet"
+  },
+  {
+    "id": "staker-141",
+    "address": "ZxCsUkRRG3pjkbziShyJLeNw8WFfeUE7njazNnqXqfhvY1pvWGfRws8S4nqzgFVWgkFpmtbJM9HmF3BvS6rDFghg1AtuNrnkd",
+    "wallet_file": "/home/user/zanogen/stakers/staker-141.wallet"
+  },
+  {
+    "id": "staker-142",
+    "address": "ZxDMkFihmgz5KrUN6c8ndGc5q8d2QGCAxEPYKVFVMN6VTqeH28Mc9dZ48EgrBSHhgnVn9CefFUnNFZ6AMHqaGKrG1efgPyRSo",
+    "wallet_file": "/home/user/zanogen/stakers/staker-142.wallet"
+  },
+  {
+    "id": "staker-143",
+    "address": "ZxDb4h6Q5i9beg4ARqBphubk9G9T6TUsbKHvNXJhEKKBaMXepWXWpYxLqbDArTsprHaydMBuzX1N2J6Nf37BVxyf2xd7zJqw2",
+    "wallet_file": "/home/user/zanogen/stakers/staker-143.wallet"
+  },
+  {
+    "id": "staker-144",
+    "address": "ZxC52mdZNsuibqtPPAxJ1jX99EqFU522hTE6xwnpqHhE4R9vhZJVRxaHYsfneySRkL2eepcKZBDQ29SRGQv9PVQ12atR7CWSm",
+    "wallet_file": "/home/user/zanogen/stakers/staker-144.wallet"
+  },
+  {
+    "id": "staker-145",
+    "address": "ZxCgo3xRVCUHJFSffhMpccZQnqP7zXMrSLUvHEN7G5SjHHo36581woS7XQ7bwcrEG7RuiGr4TWy6a1vruA6uQVaJ1Z3g3LM12",
+    "wallet_file": "/home/user/zanogen/stakers/staker-145.wallet"
+  },
+  {
+    "id": "staker-146",
+    "address": "ZxBkkKsz96Z8oHu1wCswzY8QV1W8g1Ps85RmmAK9nuYs8r8NWDXUkNy61jjbU8Shvt9izsfrEt5ikEr5jWMLfgrj2A3aiUhYd",
+    "wallet_file": "/home/user/zanogen/stakers/staker-146.wallet"
+  },
+  {
+    "id": "staker-147",
+    "address": "ZxCXNvVhZi4Cf2bfEedEf6CLkFNdgNTzJfRJu9a4DeXFNv26KESipNwQi5tkBa6NMHLbQfKwiHDbGS27kkgjtJ211xe4puYMD",
+    "wallet_file": "/home/user/zanogen/stakers/staker-147.wallet"
+  },
+  {
+    "id": "staker-148",
+    "address": "ZxCSECiX2fKMjV5xM43D6c2iqizcrd9ZmafpU9XcKDVwhsXSRHgEKVPHACbtwTTBNsJSAQjZqD3LXT4YYgbZF1NE2qbskRoSe",
+    "wallet_file": "/home/user/zanogen/stakers/staker-148.wallet"
+  },
+  {
+    "id": "staker-149",
+    "address": "ZxBxuYb69US78XDFjSh47eCwkALnujuKAVyK3XAjv9XjTV2LBAazS9zf6y3ZQ1g5F2LbM4pZkXvdz4MUuwz38Bmi1rF6WhezX",
+    "wallet_file": "/home/user/zanogen/stakers/staker-149.wallet"
+  },
+  {
+    "id": "staker-150",
+    "address": "ZxCQh3m9QgoVBpqNGAgERg7nifrwvu3Q6MWCUK17hhZmD4rkuMaRjjEEdueXh37GjeRPZDSVgVci2c1RbYV5ndMe1Hc9iD2dS",
+    "wallet_file": "/home/user/zanogen/stakers/staker-150.wallet"
+  },
+  {
+    "id": "staker-151",
+    "address": "ZxDdeyFncaCSeFDU9Hjmz56rrJUzdUimcet57rXsHgTofrjUbJjLSCAPKYhWD34r2ph86RJCTvbPwgnEe1uW7bi51oJHpH8c3",
+    "wallet_file": "/home/user/zanogen/stakers/staker-151.wallet"
+  },
+  {
+    "id": "staker-152",
+    "address": "ZxCqVq6pXyrV6mEYEjg47d5m4RTNu7wqsAc6iviJGXh919QdMRu5TqRQuQ1nXYWSwfGbZhRuk8QZZ9GV6V12vagC2XhUhwKjj",
+    "wallet_file": "/home/user/zanogen/stakers/staker-152.wallet"
+  },
+  {
+    "id": "staker-153",
+    "address": "ZxD39m6ucq6LcYkNGgLUkiHsFBQFNGQEgGRYUAAQ86e1grwNA6H4UWAFs9rZYhD8pBQGU4TVjBLo2Z9db3VJGvSS2RZWmMugf",
+    "wallet_file": "/home/user/zanogen/stakers/staker-153.wallet"
+  },
+  {
+    "id": "staker-154",
+    "address": "ZxDZZaHUUUcfDzVJxK7oUWashNceetf3g57RsWMvLkiMBZM5Sh4oc32Y6y2Xxpyi2LdYYZJBLd8SpGMBk1Kzny3p1yEuYvwaQ",
+    "wallet_file": "/home/user/zanogen/stakers/staker-154.wallet"
+  },
+  {
+    "id": "staker-155",
+    "address": "ZxCYWyisQudSpgh61wPx1L9cFcxyQ9cjuezgfYYwCeME9gerp8kPTwgT3n2ofVFEc19ZqJZuvHJyUgcT4VehnAKr2yVwQD7Ka",
+    "wallet_file": "/home/user/zanogen/stakers/staker-155.wallet"
+  },
+  {
+    "id": "staker-156",
+    "address": "ZxDW1nyiuTcgbeS83x7LbXcicz8uUh66Kb6SrvZrPSoG419rA3G3TB8h3Y7mQHeD5wCpuXyYqdf8ENjLgLHm8Sdy1b25Pqhtp",
+    "wallet_file": "/home/user/zanogen/stakers/staker-156.wallet"
+  },
+  {
+    "id": "staker-157",
+    "address": "ZxCmv8t8AKK6ZJoduFkRSmPkT8mvC2DbThYkziwHu7ftKhWwmLZ7kL8dwqArbPTuTuLBL9ahbbQgn1cFZGXsXV9r27dztMhtt",
+    "wallet_file": "/home/user/zanogen/stakers/staker-157.wallet"
+  },
+  {
+    "id": "staker-158",
+    "address": "ZxCruCzy6JR4cAAnVmKYUNJfXGHVMAqtbeVDJGRWmEfkSbDEQK3d6TNMj8qpJrRzdYjEGAatj8MPsYwuRczQKY9p2o7tMBDWt",
+    "wallet_file": "/home/user/zanogen/stakers/staker-158.wallet"
+  },
+  {
+    "id": "staker-159",
+    "address": "ZxBvHpwDWSKGqST6HTyUtLUEKavNcuEuhdJoKEN5oarJHfSjhJp18hagvGLw8YiB4cARTxnrcuPedDkvZBpCwC343BmsCSBLr",
+    "wallet_file": "/home/user/zanogen/stakers/staker-159.wallet"
+  },
+  {
+    "id": "staker-160",
+    "address": "ZxCRLh79TcRKspiiqywJ41XuswhTcYvDyMQNees6DbMD6cuQwCyY8qcYeULmV8BgUzjNoutPEQFZHjPaY2gK2JrJ2rJbhBhdG",
+    "wallet_file": "/home/user/zanogen/stakers/staker-160.wallet"
+  },
+  {
+    "id": "staker-161",
+    "address": "ZxBonmTjb9F2zsN2YqfTtchnNA6QkQdv7P2vW4Hsq9CBcf94C1Ap2i3HqiJHuQqa5zjjsyDUmBpTn55NgWw71G2U12rmeP5ML",
+    "wallet_file": "/home/user/zanogen/stakers/staker-161.wallet"
+  },
+  {
+    "id": "staker-162",
+    "address": "ZxCp9jS2SVQ4MycCMre3ioCA34Sto1rzTYp5GKGBoLXxEJiDfVHqKVv2XrTChAqATXe2fPxJLmTXXGkeJcqxyba31EyJwwfZT",
+    "wallet_file": "/home/user/zanogen/stakers/staker-162.wallet"
+  },
+  {
+    "id": "staker-163",
+    "address": "ZxDNbSUahviRMTzNxgdPuQ1jYqEHMDyyWR9Py3CBqf5uX1F6U14he9i98j9wKBxJxAbheLg42s2tCcnMaXCVSgha2ELmQ1A6Z",
+    "wallet_file": "/home/user/zanogen/stakers/staker-163.wallet"
+  },
+  {
+    "id": "staker-164",
+    "address": "ZxCgbyNFM3rQ7dG8h7Bcy2BoQmsheE9sZQrufMRZEyd5bTFbm4LiM9tARzFje87tZGM8NoZdGHgW8R2Ti7pWB82F1LgsBghzx",
+    "wallet_file": "/home/user/zanogen/stakers/staker-164.wallet"
+  },
+  {
+    "id": "staker-165",
+    "address": "ZxD8wyM8BfN3weCrrvgokASRNenxpr9KsFajHZi83Jm7Cu63ERTKxYATqSM7X1KZxRfLz8wda41HW4ru1VDxcUrt14L1zSajd",
+    "wallet_file": "/home/user/zanogen/stakers/staker-165.wallet"
+  },
+  {
+    "id": "staker-166",
+    "address": "ZxCbZgctR5jESWpRABAmUd6itKUNyCmk8KoyeeXPmfWkA9Le8bc7Qhd2tABymUBNno3MEfJwVHEe5S6axNNtXyVp2S7iF3Uc3",
+    "wallet_file": "/home/user/zanogen/stakers/staker-166.wallet"
+  },
+  {
+    "id": "staker-167",
+    "address": "ZxCLFtDBHCeAz9HyvmtvhFj9GYvExYWDQ2sxTzgv7FTSEoJe6tKazL2CFgcy8nTaffK832qtTLRG3S9DaELgNm7C22rxiuCX7",
+    "wallet_file": "/home/user/zanogen/stakers/staker-167.wallet"
+  },
+  {
+    "id": "staker-168",
+    "address": "ZxBpLY9fYGr2vVC74d4a9d7fdAfRFinu5eKcqnx9e71iajZ31XXyoZv9uso2oAUxtP5KqnneLy5cfKovukf6dkZK19sTWZan2",
+    "wallet_file": "/home/user/zanogen/stakers/staker-168.wallet"
+  },
+  {
+    "id": "staker-169",
+    "address": "ZxDE1vBaztxbYEAMi3pVba6KcmnxG2JnoWncLvBCV5fva3nDMPdF74ygegB4e1DNvQ6csDdoB2bgraLVeqD2ejmY1oWwcH4zA",
+    "wallet_file": "/home/user/zanogen/stakers/staker-169.wallet"
+  },
+  {
+    "id": "staker-170",
+    "address": "ZxDUCAMXJw48dH9Wtamqx332hQQFD8yyF3x7Wp4gnFNA5rovzor4E7QLsphszoPQoKc13h2aRUEFuUMR6FD2wm5624jUYR61H",
+    "wallet_file": "/home/user/zanogen/stakers/staker-170.wallet"
+  },
+  {
+    "id": "staker-171",
+    "address": "ZxDqiRtwdRrHanJ1kig38qUmbVuVVijhPjWq3SAkhkDndAKSc5q6Sz6AftpLtLZU56hqM5x3zWvh4A4hMPbiLaev34evaSEdq",
+    "wallet_file": "/home/user/zanogen/stakers/staker-171.wallet"
+  },
+  {
+    "id": "staker-172",
+    "address": "ZxCPhsyJUH4UTomG89rLsQFBHTnPQdkLeC6SBq6Cz42zLHxwJeWZ2MBDmBnvrp7gCv4ejyxdtVeGsM3Dq8m8BpJA1sSTfmzTq",
+    "wallet_file": "/home/user/zanogen/stakers/staker-172.wallet"
+  },
+  {
+    "id": "staker-173",
+    "address": "ZxC5qJ9FPPrHTUpbScFk1a4FrdKsBXd8iLYBFzdrjszhXLT1SyFePtm7FJutMHZ3juf4r4Ujstik46skdtdvFfzU2fLWhaA5h",
+    "wallet_file": "/home/user/zanogen/stakers/staker-173.wallet"
+  },
+  {
+    "id": "staker-174",
+    "address": "ZxD2Jf1bWKtbQbX7BEA8oQBHtHn6LVzV1CDqdAVgcECKVBgCDUqTBSVQz1YSAErU371ojS3zrc2XthSLMMA8Tqww1ctnC4UGP",
+    "wallet_file": "/home/user/zanogen/stakers/staker-174.wallet"
+  },
+  {
+    "id": "staker-175",
+    "address": "ZxD4PPZXNKh8jYGwW4zqtoPXeTVmJJRqdbCiCAQDAkAscQCgWikPm8VL7phRE13BDxaTCjzjyQHRcVweSG7hyuqR1Drm7roBq",
+    "wallet_file": "/home/user/zanogen/stakers/staker-175.wallet"
+  },
+  {
+    "id": "staker-176",
+    "address": "ZxByNcHQcfwWSRTB8a3CW5g5V8BxtNEqH9LsMWTj9MkoHSmaK4EvLUwJCAZYUy6ugr2WpZAQ4VDu4bHrLzrveDoS2PsCQw9km",
+    "wallet_file": "/home/user/zanogen/stakers/staker-176.wallet"
+  },
+  {
+    "id": "staker-177",
+    "address": "ZxCqa9BKNutDgV1T9DWQstTLJiz1SCnHPhaZY8xBQwgeX1MDHekok6JFUFbDQGVrwGDc6N9LFn3KdWB4pKyMiDQ61oDuU2Qac",
+    "wallet_file": "/home/user/zanogen/stakers/staker-177.wallet"
+  },
+  {
+    "id": "staker-178",
+    "address": "ZxCuR7NqXtWPRGCA1jEpykM6rKoyXMy98fpb7ViB59mr9GN8wme7YxAc8YTY4vNxAY5KJcDggjrVC6GS4m6LWzEd1xtotfSJn",
+    "wallet_file": "/home/user/zanogen/stakers/staker-178.wallet"
+  },
+  {
+    "id": "staker-179",
+    "address": "ZxDqMPT6a3W8g8DyaVtwaCbs18a8qdKszPv57Nj6cnFqPhJ7XDMZZPMKRqnNNy2ENNQALBJG1XwWQWBj3JaU55dR2PFma25u9",
+    "wallet_file": "/home/user/zanogen/stakers/staker-179.wallet"
+  },
+  {
+    "id": "staker-180",
+    "address": "ZxDEYAyWXkncaoeSSrEjSnVjJHdFohrFrXw7twUabHgD6qmkNe6AouLj6b5KaUyQrraCMLGB2QTgkH83n8VnNht52VrfKDgVn",
+    "wallet_file": "/home/user/zanogen/stakers/staker-180.wallet"
+  },
+  {
+    "id": "staker-181",
+    "address": "ZxBxA4VVt7BGtwWjFK9tff2dHhsmLgCvqWwCseMVGLydQF1mU23x1Bx8ADDfTJtNGpen24upiEpNKJuoJ7cbnsvF2D1Xz6i2J",
+    "wallet_file": "/home/user/zanogen/stakers/staker-181.wallet"
+  },
+  {
+    "id": "staker-182",
+    "address": "ZxCNgFBUUMx8TMaB57Tg35D675pJ1EgwfJxJnd3bwa25D24Z1Lf2f3zHULguN8FbD6WNSTyS48j9RKuUvHE71cHL1pivXcBiG",
+    "wallet_file": "/home/user/zanogen/stakers/staker-182.wallet"
+  },
+  {
+    "id": "staker-183",
+    "address": "ZxCdJphM7x6DFfXqWd5r5g7CK7qbqYSQBVbqPEa3YSmQEaPRbLqnbEBgLFefHBf5dEXkPtyJBTAcLeN1b3p4fp2L2WxiStHPi",
+    "wallet_file": "/home/user/zanogen/stakers/staker-183.wallet"
+  },
+  {
+    "id": "staker-184",
+    "address": "ZxD6aJH1eD3diqReEctVLDWLQav3iXBXZAt64znM9RB3TC9LeFiwwuxe2cZCLkdZtu6HfbMYKstfS2dTQmCxy58F1VZ6g5DwL",
+    "wallet_file": "/home/user/zanogen/stakers/staker-184.wallet"
+  },
+  {
+    "id": "staker-185",
+    "address": "ZxBv6wLZgUXQEQMj5uZLKebs9xrpphEZuMqPeKj9bbfHRSjuvxZ6rm8eZ4MNXZ82avfnNDgVUjTFud2WbuLwz5Uz1XvH77Mj9",
+    "wallet_file": "/home/user/zanogen/stakers/staker-185.wallet"
+  },
+  {
+    "id": "staker-186",
+    "address": "ZxDfQq2JEMNJrwVt1sSsrGivXBeY37sM6YmQ8Sym54z6FptDZMgsPsWJ8VX4Dpj5ZuhuQ1hpHKYyR7wJ86TTv18W1de6yYiQ1",
+    "wallet_file": "/home/user/zanogen/stakers/staker-186.wallet"
+  },
+  {
+    "id": "staker-187",
+    "address": "ZxBz8GBzWtiiP9kygMoufEDruK5VjkUWiNcuAQKDE3uLQdyAd7YoTME9jWXECtboMURyJ3BQePghzA2gK4Y6BFJE17N8v7zpF",
+    "wallet_file": "/home/user/zanogen/stakers/staker-187.wallet"
+  },
+  {
+    "id": "staker-188",
+    "address": "ZxD6He3PHqDCRAdJTBq6MD3jDjv8EpfGXCyHM4VxqCjMi3LUAr21Lmd94i9aFCUhiwhG1Gxpb2gC4KkHCwc9wC3u17dPQkgAe",
+    "wallet_file": "/home/user/zanogen/stakers/staker-188.wallet"
+  },
+  {
+    "id": "staker-189",
+    "address": "ZxCNtwG1obTJLg3aMGaiGnWPyx6SjSKSw7SKZFC6CUA4JvvpYTbQYuyUtpP3UY6GXqVM6i8VkhWCJ3Aqsad97HeQ2SgcWv6x9",
+    "wallet_file": "/home/user/zanogen/stakers/staker-189.wallet"
+  },
+  {
+    "id": "staker-190",
+    "address": "ZxDmBxcVXa7Hg5hXAn45WTAXbnNxCbuxTbFgU5cMhrLFbqwXc2Xa6Ft2iwNg2xrDckU5tBcAXMEerM8WoMsVG8CH2H3td2W8A",
+    "wallet_file": "/home/user/zanogen/stakers/staker-190.wallet"
+  },
+  {
+    "id": "staker-191",
+    "address": "ZxBwHR5yJX3HKKmitwTyb1372PKhkjURK8pYCNSAu8iGG857V2Po647QCqjgUVw7iC5m2Ma9DbM38Vh8t3QZ7qNj3Ar5cCjmR",
+    "wallet_file": "/home/user/zanogen/stakers/staker-191.wallet"
+  },
+  {
+    "id": "staker-192",
+    "address": "ZxCJmhMzGYogePRWmjHJVnciNkGVUh5MQGacQ1fUBPULTcoY5ej8PooagLy3nq8RfMDAbaR78FSeyXXRVCAeLJKf2G41SFarb",
+    "wallet_file": "/home/user/zanogen/stakers/staker-192.wallet"
+  },
+  {
+    "id": "staker-193",
+    "address": "ZxCcfccLFLeNYVLW1n5bzX9dPzCCECfTjMWogLC7iTQdUUY7kt3Laij5JhXUrLQ89aHMpKc4bB6sXa61jV7AQa1B1W7aJ3UXQ",
+    "wallet_file": "/home/user/zanogen/stakers/staker-193.wallet"
+  },
+  {
+    "id": "staker-194",
+    "address": "ZxDsCpwp43TRm6YQJACZtwgEfVvCJYe98gLcQQDc5LTQbu3VqTVoCGtY2Tb2CPT4PsMKFGjy99sSdTUHGqTrEfcv26o1j2YNs",
+    "wallet_file": "/home/user/zanogen/stakers/staker-194.wallet"
+  },
+  {
+    "id": "staker-195",
+    "address": "ZxDVfGGfRJ2CH6pF6tyCnzXQy3qWmcgF3Z4kRdpc29nyT9uFJMcpHe3e4qfaqa4UuW87t8nyjXm45MGHooF23stk1fwdaWeus",
+    "wallet_file": "/home/user/zanogen/stakers/staker-195.wallet"
+  },
+  {
+    "id": "staker-196",
+    "address": "ZxBuSgGHRy2iJigCx3pcQkfuTijsagLrEKimgw2gvttMAH8kQba49poPktwHvZvijA1GEptVCbYKLLHnQosEt5292pMnohtym",
+    "wallet_file": "/home/user/zanogen/stakers/staker-196.wallet"
+  },
+  {
+    "id": "staker-197",
+    "address": "ZxDcNrkPjHVRr8w5TztFjBjbSnw6jJwd8emXryHnFwJyM74ee4J6bLMYX9AkpeMA83TNLYhWUK1A5DFrfWutMge82bEidVhKX",
+    "wallet_file": "/home/user/zanogen/stakers/staker-197.wallet"
+  },
+  {
+    "id": "staker-198",
+    "address": "ZxCZmfzM8gLF8S4UEG9EiKQrrCStMm58y6MG5HLpJNtfPk6tZWV9yAuUa19s2cmABc8s1zXhfckvWUH3kHZFPRUh1hjiR5LQd",
+    "wallet_file": "/home/user/zanogen/stakers/staker-198.wallet"
+  },
+  {
+    "id": "staker-199",
+    "address": "ZxDjcwqK1yneAb1BG6APeabdYAeXnTZnHJM6g2d3S5KUHi6R1hSqdRcKsjiNsnngnCLTKAae4MRA83bxcpe6hdoT1YrKRom9D",
+    "wallet_file": "/home/user/zanogen/stakers/staker-199.wallet"
+  },
+  {
+    "id": "staker-200",
+    "address": "ZxDtY4QPk4PZxnZpy2uJtRNafkSYMKXmCVE5MtXY7LAUKmo7ASdbcinB3ytsGHAR7qUd7Pb4BUqV4V7rytGuKALs1DguULxUb",
+    "wallet_file": "/home/user/zanogen/stakers/staker-200.wallet"
+  }
+]

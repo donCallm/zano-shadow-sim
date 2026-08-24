@@ -1,0 +1,22 @@
+-------------genesis_acc.cpp-------------
+const std::string ggenesis_tx_pub_key_str = "44a67a23a8359121f0cd63c14d5fb2f4f8597df4d212dba9a185b4e5efb56ec3";
+const crypto::public_key ggenesis_tx_pub_key = epee::string_tools::parse_tpod_from_hex_string<crypto::public_key>(ggenesis_tx_pub_key_str);
+extern const genesis_tx_dictionary_entry ggenesis_dict[16];
+const genesis_tx_dictionary_entry ggenesis_dict[16] = {
+{3275520084312940858ULL,13},
+{3329074254576833808ULL,7},
+{3500083926493566118ULL,1},
+{4454913032589342993ULL,6},
+{6517107322984780143ULL,5},
+{7470730676572680330ULL,3},
+{7507182027803981259ULL,4},
+{8271995904838216383ULL,0},
+{8456441999491026973ULL,15},
+{8658137258069119184ULL,9},
+{9649775536996749827ULL,10},
+{10280316726432950135ULL,14},
+{12172859610232132450ULL,12},
+{12701475298941204348ULL,11},
+{18094160911561962512ULL,2},
+{18363484532872207547ULL,8}
+};

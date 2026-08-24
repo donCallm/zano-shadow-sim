@@ -1,0 +1,38 @@
+general:
+  stop_time: 120s
+  seed: 12345
+  parallelism: 0
+  model_unblocked_syscall_latency: true
+  log_level: warning
+  progress: true
+experimental:
+  use_dynamic_runahead: true
+  native_preemption_enabled: true
+network:
+  graph:
+    type: 1_gbit_switch
+hosts:
+  sim1:
+    network_node_id: 0
+    ip_addr: 11.0.0.1
+    processes:
+      - path: /home/user/zano/build-sim/src/zanod
+        args: [--data-dir=/tmp/iso/sim1, --no-predownload, --disable-upnp, --no-console,
+               --db-engine=lmdb, --allow-local-ip, --p2p-bind-ip=11.0.0.1,
+               --p2p-bind-port=11121, --rpc-bind-ip=127.0.0.1, --rpc-bind-port=11211,
+               --log-level=1, --add-priority-node=11.0.0.2:11121]
+        environment: {HOME: /home/user}
+        start_time: 1s
+        expected_final_state: running
+  main1:
+    network_node_id: 0
+    ip_addr: 11.0.0.2
+    processes:
+      - path: /home/user/zano/build/src/zanod
+        args: [--data-dir=/tmp/iso/main1, --no-predownload, --disable-upnp, --no-console,
+               --db-engine=lmdb, --allow-local-ip, --p2p-bind-ip=11.0.0.2,
+               --p2p-bind-port=11121, --rpc-bind-ip=127.0.0.1, --rpc-bind-port=11211,
+               --log-level=1, --add-priority-node=11.0.0.1:11121]
+        environment: {HOME: /home/user}
+        start_time: 2s
+        expected_final_state: running

@@ -1,0 +1,389 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d5c975f3..852b48b9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -74,6 +74,7 @@ endif()
+ 
+ set(USE_PCH FALSE CACHE BOOL "Use shared precompiled headers")
+ set(TESTNET FALSE CACHE BOOL "Compile for testnet")
++set(ZANO_SIMNET FALSE CACHE BOOL "Compile for the Shadow simulator network")
+ set(BUILD_GUI FALSE CACHE BOOL "Build qt-daemon")
+ set(USE_BITCOIN_SECP256K1_FOR_ECDSA FALSE CACHE BOOL "Use bitcoin-secp256k1 library for validating ECDSA(instead of OpenSSL)")
+ if(NOT USE_BITCOIN_SECP256K1_FOR_ECDSA)
+@@ -90,6 +91,15 @@ if(TESTNET)
+   add_definitions(-DTESTNET)  
+ endif()
+ 
++if(ZANO_SIMNET)
++  if(TESTNET)
++    message(FATAL_ERROR "ZANO_SIMNET and TESTNET are mutually exclusive")
++  endif()
++  message("!!!!!! NOTICE: Project is building for SIMNET !!!!!!")
++  add_definitions(-DZANO_SIMNET)
++endif()
++
++
+ if(CAKEWALLET)
+   message("NOTICE: Building libraries for CAKEWALLET")  
+   add_definitions(-DCAKEWALLET)  
+diff --git a/contrib/db/libmdbx/src/elements/osal.h b/contrib/db/libmdbx/src/elements/osal.h
+index c1988ad7..4fc71819 100644
+--- a/contrib/db/libmdbx/src/elements/osal.h
++++ b/contrib/db/libmdbx/src/elements/osal.h
+@@ -428,7 +428,7 @@ static __maybe_unused __inline void mdbx_compiler_barrier(void) {
+ }
+ 
+ static __maybe_unused __inline void mdbx_memory_barrier(void) {
+-#if __has_extension(c_atomic) || __has_extension(cxx_atomic)
++#if defined(__clang__) && (__has_extension(c_atomic) || __has_extension(cxx_atomic))
+   __c11_atomic_thread_fence(__ATOMIC_SEQ_CST);
+ #elif defined(__ATOMIC_SEQ_CST)
+   __atomic_thread_fence(__ATOMIC_SEQ_CST);
+diff --git a/src/common/db_backend_base.h b/src/common/db_backend_base.h
+index a7804f15..1728f307 100644
+--- a/src/common/db_backend_base.h
++++ b/src/common/db_backend_base.h
+@@ -5,7 +5,9 @@
+ 
+ #pragma once
+ 
+-#ifndef ENV32BIT
++#ifdef ZANO_SIMNET
++#define CACHE_SIZE uint64_t(2UL * 1024UL * 1024UL * 1024UL)   // 2 GiB
++#elif !defined(ENV32BIT)
+ #define CACHE_SIZE uint64_t(uint64_t(1UL * 128UL) * 1024UL * 1024UL * 1024UL)
+ #else
+ #define CACHE_SIZE (1 * 1024UL * 1024UL * 1024UL)
+diff --git a/src/connectivity_tool/conn_tool.cpp b/src/connectivity_tool/conn_tool.cpp
+index eeae1d43..547a6ca7 100644
+--- a/src/connectivity_tool/conn_tool.cpp
++++ b/src/connectivity_tool/conn_tool.cpp
+@@ -355,7 +355,7 @@ bool generate_genesis(const std::string& path_config, uint64_t premine_split_amo
+     account_public_address addr{};
+     bool r = get_account_address_from_str(addr, p.address_this);
+     CHECK_AND_ASSERT_MES(r, false, "wrong address string: " << p.address_this);
+-    de.addr.push_back(addr);
++    de.addr.assign(1, addr);   // ZANO_SIMNET fix: de объявлена вне цикла, push_back накапливал адреса -> multisig-выход
+ 
+     de.amount = p.amount_this_coin_int; //std::cout << de.amount << ENDL;
+     summary_premine_coins += de.amount;
+diff --git a/src/currency_core/checkpoints_create.h b/src/currency_core/checkpoints_create.h
+index 49d10037..c5bed4de 100644
+--- a/src/currency_core/checkpoints_create.h
++++ b/src/currency_core/checkpoints_create.h
+@@ -16,7 +16,8 @@ namespace currency
+ 
+   inline bool create_checkpoints(currency::checkpoints& checkpoints)
+   {
+-#ifdef TESTNET
++#if defined(TESTNET) || defined(ZANO_SIMNET)
++    // no checkpoints for testnet and simnet
+ 
+ #else
+     // MAINNET
+diff --git a/src/currency_core/currency_config.h b/src/currency_core/currency_config.h
+index a08c60bf..c8070176 100644
+--- a/src/currency_core/currency_config.h
++++ b/src/currency_core/currency_config.h
+@@ -8,7 +8,11 @@
+ 
+ 
+ #ifndef TESTNET
+-#define CURRENCY_FORMATION_VERSION                      84
++#  ifdef ZANO_SIMNET
++#    define CURRENCY_FORMATION_VERSION                  110
++#  else
++#    define CURRENCY_FORMATION_VERSION                  84
++#  endif
+ #else
+ #define CURRENCY_FORMATION_VERSION                      103
+ #endif
+@@ -132,7 +136,12 @@
+ #define STRATUM_DEFAULT_PORT                            11777
+ #define P2P_NETWORK_ID_TESTNET_FLAG                     0
+ #define P2P_MAINTAINERS_PUB_KEY                         "8f138bb73f6d663a3746a542770781a09579a7b84cb4125249e95530824ee607"
+-#define DIFFICULTY_POS_STARTER                          1
++#  ifdef ZANO_SIMNET
++     // измеренное равновесие стенда, см. docs/20260823_zano_simulator_roadmap.md, п. 2.4
++#    define DIFFICULTY_POS_STARTER                      100000000000000000
++#  else
++#    define DIFFICULTY_POS_STARTER                      1
++#  endif
+ #else 
+ #define P2P_DEFAULT_PORT                                (11211 + CURRENCY_FORMATION_VERSION)
+ #define RPC_DEFAULT_PORT                                12111
+@@ -188,7 +197,11 @@ static_assert(CURRENCY_FORMATION_VERSION == 103);
+ 
+ 
+ #ifndef TESTNET
+-#  define BLOCKCHAIN_HEIGHT_FOR_POS_STRICT_SEQUENCE_LIMITATION 57000
++#  ifdef ZANO_SIMNET
++#    define BLOCKCHAIN_HEIGHT_FOR_POS_STRICT_SEQUENCE_LIMITATION 0
++#  else
++#    define BLOCKCHAIN_HEIGHT_FOR_POS_STRICT_SEQUENCE_LIMITATION 57000
++#  endif
+ #else
+ #  define BLOCKCHAIN_HEIGHT_FOR_POS_STRICT_SEQUENCE_LIMITATION 18000
+ #endif
+diff --git a/src/currency_core/currency_format_utils.cpp b/src/currency_core/currency_format_utils.cpp
+index f677b42e..44048501 100644
+--- a/src/currency_core/currency_format_utils.cpp
++++ b/src/currency_core/currency_format_utils.cpp
+@@ -4325,7 +4325,11 @@ namespace currency
+     CHECK_AND_ASSERT_MES(r, false, "failed to parse coinbase tx from hard coded blob");
+     bl.major_version = BLOCK_MAJOR_VERSION_GENESIS;
+     bl.minor_version = BLOCK_MINOR_VERSION_GENESIS;
++#ifdef ZANO_SIMNET
++    bl.timestamp = 946684800;   // 2000-01-01, начало отсчёта часов Shadow
++#else
+     bl.timestamp = 0;
++#endif
+     bl.nonce = CURRENCY_GENESIS_NONCE;
+     LOG_PRINT_GREEN("Generated genesis: " << get_block_hash(bl), LOG_LEVEL_0);
+     return true;
+diff --git a/src/currency_core/genesis.cpp b/src/currency_core/genesis.cpp
+index 5c5435a5..03e100e7 100644
+--- a/src/currency_core/genesis.cpp
++++ b/src/currency_core/genesis.cpp
+@@ -6,6 +6,11 @@
+ 
+ namespace currency
+ {
++#ifdef ZANO_SIMNET
++  const genesis_tx_raw_data ggenesis_tx_raw = {{
++0xda86801000000101,0xd6030f98e6b6d1c0,0x30d8c81310f3f642,0xd9c7050993d322fb,0xf064453832d4a54d,0x00ced606434c6ba7,0x98e6b6d1c0da8680,0x5c69eda3dcd9030f,0xd558e7b541e78195,0x776cb3a446643e7f,0xbf4176492eaf2879,0xd1c0da8680007c3f,0x2fb3ff030f98e6b6,0x61b11bfc4d6db053,0x43026739c4693fec,0x753d3b9707c30e53,0x8680000e7bb5f0cc,0x030f98e6b6d1c0da,0x251dffcb81b1cb27,0x71088e0532876bdd,0xf2a78226da8cc3fb,0x471dda89e39a7c18,0xe6b6d1c0da868000,0x53c226f65b030f98,0xfd9bf91860653d8d,0xf9e938c3c36e5069,0x6414cb6196fcb100,0xc0da8680004d18df,0x38be030f98e6b6d1,0xf1497e05dc9fd073,0x7edf92ef30b20789,0xf4fd5ce30b37718d,0x8000cbdbf2f3cee1,0x0f98e6b6d1c0da86,0xdee9ee54f551b303,0x337807a72a2debfd,0x7225eaa3de65074b,0xc487f5b8b0c571ab,0xb6d1c0da868000b9,0xf51832fe030f98e6,0xcf03f0a85d5f7e1b,0x06b4ee4bb94e38ac,0x015fb80029f92181,0xda868000dbb89200,0x71030f98e6b6d1c0,0xa1e0c68554a62e04,0x20c250d433da0ede,0xed904b9a7aea0a3a,0x00f1912e5ae52bfa,0x98e6b6d1c0da8680,0xc8e20d19aac3030f,0x01e77786cfe80d90,0x5156f44b3772835d,0xe9bf4d532ffd0c3f,0xd1c0da8680008bba,0x61527c030f98e6b6,0xb5364d1a6b1fc38e,0xa7d69b850c6985f7,0xefc6e3157b7d6f18,0x868000b6b9789d7a,0x030f98e6b6d1c0da,0x9fecc9c25e1a06a0,0x699615b727e8cac5,0xc73b61d154c65d3e,0x5e05e151c783d7bd,0xe6b6d1c0da868000,0xa4c7deec82030f98,0xa27d911e36bee930,0x460f8b5294d896af,0x852c57f3b24e7a57,0xc0da868000ca8315,0xa95c030f98e6b6d1,0x797203a67392d621,0x2ea23806660182cc,0xabaeee395320015d,0x8000a5e73eb8cb51,0x0f98e6b6d1c0da86,0xd89c8a4fc3b43103,0x00422d7ffc5832ae,0xe652c043051fe9a3,0x4dbe520d24a35cc8,0xb6d1c0da868000d2,0x7c3d0978030f98e6,0xb6fcb832706a3363,0xcdcceed8a205017a,0x403d96c1fb6c20a4,0x44161400462f0fc3,0xf0219135a8237aa6,0xf8f4b25f4dc163cd,0xa1a9db12d2f47d59,0x13c36eb5efe5b485,0x736f72656e6f6d28,0x206f6e617a206d69,0x672074656e6d6973,0x3220736973656e65,0x322d38302d363230,0x0b0598020b001534,0x0b0cdd020b06ee02,0x0b2e57020b299202,0x0b5781020b3bde02,0x0b8f0c020b67ab02,0x0ba8d8020ba56402,0x0bab8d020ba99c02,0x0bcc56020bc23002},
++{0x02,0x12,0xe7,0x0e,0x0a,0x00,0x00}};
++#else
+ #ifndef TESTNET
+   const genesis_tx_raw_data ggenesis_tx_raw = { {
+       0xa080801a00000101,0x800326b0b4a0f2fd,0xeebe5a6d44a03ed5,0x0e146a5322076dcf,0x992269ec1e34796e,0x003b14d1fe6c757e,0xb0b4a0f2fda08080,0xfd92adf982e70326,0xd8d4b6458b60e1a4,0xa69adb9475e808ed,0x4c383fcedfb6e20a,0xf2fda08080003458,0x8b177f0326b0b4a0,0xef9769ed70d152cd,0x04097d0daa65d123,0x9cd9f8e708f25bbc,0x8080005dfb23beac,0x0326b0b4a0f2fda0,0x6752077f8e75fc8a,0x437f68e0bf774836,0x5a38b52ff21c01c0,0x2d3727ec82ce1425,0xb4f89aecdce08000,0xa07d9fe35f0326b0,0x6c742533eb3b4261,0xfc2ed631332e5e16,0x3d025449393e538b,0x93dc80800015e433,0x70a20307d0ffc2e0,0xb81808dc5029bd46,0x04129413283e31f1,0x143e631cc81020b0,0x80008519d1377ae3,0x05c6c5bc97b1a080,0xf71887a841a72a03,0x681b659b8d2832d4,0x5677f9b15d11d1e6,0xffb2ad80c02a341c,0xbc97b1a08080003f,0xf9cebe7c0305c6c5,0xee223954dc682820,0x8194d2bac0dff6d6,0x86d8a55a30e30183,0xa08080006775f5f0,0x220305c6c5bc97b1,0x3c36e1ebdcee584a,0x4e9ed1a89532ef46,0xf0cb8b411bf6d579,0x00d0e6392ada64d4,0xc6c5bc97b1a08080,0x2fc2b05779450305,0xc9cf47618cc5283e,0xa9e088224807a77e,0xda854e29d2f49646,0x97b1a08080002e74,0xed35180305c6c5bc,0xa78d5545117b8293,0x5c3f8babc16e7062,0xef9324ecd7f86e39,0x808000231900ee9c,0x0305c6c5bc97b1a0,0x0c5bfd9450e89e30,0x194b86e8316970bc,0x5dd8c2e3c2af6ff1,0x4d2ba46f683df89c,0xc5bc97b1a0808000,0xc7cc22ad390305c6,0x891b500cb0799642,0xf5884473a7c01f07,0xeb88d74972d8e36f,0x91ed808000b5d239,0x535a0302fddecd95,0x791c7275cd15d685,0xc2536511d4132e01,0x0c9ad1ee9196aa77,0x80002d55a4efc7d3,0x018e8df2b7f0a080,0x0848b53f974a6a03,0x96b2572cb6015b7d,0xa71b18d2755de52c,0x075e4ca4bd0e4487,0xef93bf82808000ca,0xe23077bc730308f0,0x266a622b7bd9de26,0x4b80410b36c32203,0xb3026d0a2610916c,0xfe8480800084746d,0x6f34b90311e1dea6,0xeb38aee70a8febba,0x8b45df519f0df12e,0x258f0a71e83385da,0x8080000b85701a76,0xdf0308f0ef93bf82,0xb3170ab580f881a3,0x07f0a33f0756a3f4,0xf0721645b2b2bd7b,0x00b0077e03f43a85,0x08f0ef93bf828080,0xf91c1f6308c00f03,0x901a68f4adcc918b,0xad0346f5b7869662,0xd3ed49961fccd915,0xafeaa69a808000f0,0x2c99a01fe90301e3,0xd28642bcae6728d9,0xa6f38c4c630c2b6c,0x2c8a361de6b9294f,0xa69a8080002191e8,0xe134670301e3afea,0x6cf0798aeae985c8,0x4c9b90e1ff211b81,0xc32a954ce05a738b,0x8080009fd2412c6f,0x790301e3afeaa69a,0xb3b0062d6c27a6bb,0x12e133832172b705,0xf3f7d1dfdf336fb8,0x00922d0a879c6027,0x03c6dfd4ccb48080,0x7aa13f278feecf03,0x464f78f86a3e4553,0xa5a464e65c4cf651,0x18f07e7ed8bdd351,0xef93bf82808000dd,0x70b4e3ebae0308f0,0x74c452ecdce312d9,0xca3fb591982461fc,0x3e01aaf9b53ede69,0xfe84808000a4fa65,0x20e5ba0311e1dea6,0xb3e07ec0aabd06a5,0x7bf14a03bf83ccfd,0x6024154f95fd3220,0x808000c13077fa8b,0x5c580316deb183e9,0xc2c948248ab422c3,0xebd3db36bad27d52,0x5fe30392c1525a4e,0x1e00952287d66a6d,0x163df474d5ba8816,0x86f8892015449a71,0x22c93333d9ecb472,0x64fa5516bddfebb3,0x3234373061401303,0x3934353331623633,0x3063626435643130,0x6334636130633932,0x3831383439633530,0x3330336634336332,0x3963306232336630,0x3261623765656133,0x80c9170015633537,0x4c17fba117829117,0x17624a17d2f21711,0xfec81731f9178ced,0x9c17624117a36017,0x1786df17edda1708,0x9ffa17d6e1171b42,0x8b17aa69177ff417,0x179815170a83170c,0xc7e8171ce317da27 },
+@@ -15,4 +20,5 @@ namespace currency
+       0xd880800500000101,0x0301f2ee9fa8ff8a,0xac88983c159856b0,0x6334c7d1b567f262,0x284f7f961a7b1266,0x8c0c68c45bab62fc,0xe1dea6fe84808000,0x337be98b45240311,0xab6cd1e4c66e5a33,0x70e889d98e70fd57,0xb97de43fb09861d4,0xf9f0cde08000d574,0x0270187703048dba,0xcac58027c0851473,0xaa10d864c4c87b46,0x820d371e2ba469e8,0xfea08000fce35acc,0x357903049598bddf,0x15df9e58bd0002aa,0xc940a97b60484e8d,0xf94f171e77d0b2d9,0x80003602c681487a,0x0304c38fbab1f8e0,0xc2529eba91cf7476,0x0bbee139aab295f9,0xf1cb8c58a828a2ca,0xcac8f5469af83932,0x5c8a1027cc160900,0x50bdcc9348baf32a,0xa7bd03751819d9fd,0xd6acc8dbbb0d9b29,0x3730614013368b02,0x3533316236333234,0x6264356431303934,0x6361306339323063,0x3834396335306334,0x3366343363323831,0x3062323366303330,0x6237656561333963,0x1700156335373261,0xce5017baa917a8f0,0x0a0eefcc17975617},
+       {0x00,0x00}};
+ #endif
++#endif
+ }
+diff --git a/src/currency_core/genesis.h b/src/currency_core/genesis.h
+index 1c025c90..7965e005 100644
+--- a/src/currency_core/genesis.h
++++ b/src/currency_core/genesis.h
+@@ -9,6 +9,13 @@
+ namespace currency
+ {
+ #pragma pack(push, 1)
++#ifdef ZANO_SIMNET
++  struct genesis_tx_raw_data
++  {
++    uint64_t const v[104];
++    uint8_t const r[7];
++  };
++#else
+ #ifndef TESTNET
+   struct genesis_tx_raw_data
+   {
+@@ -23,6 +30,7 @@ namespace currency
+     uint8_t const r[2];
+   };
+ #endif
++#endif
+ #pragma pack(pop)
+   extern const genesis_tx_raw_data ggenesis_tx_raw;
+ }
+diff --git a/src/currency_core/genesis_acc.cpp b/src/currency_core/genesis_acc.cpp
+index f49a9c0a..d1698367 100644
+--- a/src/currency_core/genesis_acc.cpp
++++ b/src/currency_core/genesis_acc.cpp
+@@ -9,6 +9,28 @@
+ 
+ namespace currency
+ {
++#ifdef ZANO_SIMNET
++  const std::string ggenesis_tx_pub_key_str = "44a67a23a8359121f0cd63c14d5fb2f4f8597df4d212dba9a185b4e5efb56ec3";
++  const crypto::public_key ggenesis_tx_pub_key = epee::string_tools::parse_tpod_from_hex_string<crypto::public_key>(ggenesis_tx_pub_key_str);
++  const genesis_tx_dictionary_entry ggenesis_dict[16] = {
++{3275520084312940858ULL,13},
++{3329074254576833808ULL,7},
++{3500083926493566118ULL,1},
++{4454913032589342993ULL,6},
++{6517107322984780143ULL,5},
++{7470730676572680330ULL,3},
++{7507182027803981259ULL,4},
++{8271995904838216383ULL,0},
++{8456441999491026973ULL,15},
++{8658137258069119184ULL,9},
++{9649775536996749827ULL,10},
++{10280316726432950135ULL,14},
++{12172859610232132450ULL,12},
++{12701475298941204348ULL,11},
++{18094160911561962512ULL,2},
++{18363484532872207547ULL,8}
++  };
++#else
+ #ifndef TESTNET
+   const std::string ggenesis_tx_pub_key_str = "88bad574f43d16719a44152089f88672b4ecd93333c922b3ebdfbd1655fa6403";
+   const crypto::public_key ggenesis_tx_pub_key = epee::string_tools::parse_tpod_from_hex_string<crypto::public_key>(ggenesis_tx_pub_key_str);
+@@ -50,6 +72,7 @@ namespace currency
+     { 6536034028979999929ULL, 0 },
+     { 15528122346224653564ULL, 3 }
+ };
++#endif
+ #endif 
+   
+ 
+diff --git a/src/currency_core/genesis_acc.h b/src/currency_core/genesis_acc.h
+index f26ee95f..ba4b9296 100644
+--- a/src/currency_core/genesis_acc.h
++++ b/src/currency_core/genesis_acc.h
+@@ -22,11 +22,15 @@ struct genesis_tx_dictionary_entry {
+ };
+ #pragma pack(pop)
+ 
++#ifdef ZANO_SIMNET
++extern const genesis_tx_dictionary_entry ggenesis_dict[16];
++#else
+ #ifndef TESTNET
+ extern const genesis_tx_dictionary_entry ggenesis_dict[26];
+ #else
+ extern const genesis_tx_dictionary_entry ggenesis_dict[5];
+ #endif
++#endif
+ 
+ extern const crypto::public_key ggenesis_tx_pub_key;
+ 
+diff --git a/src/rpc/core_rpc_server.cpp b/src/rpc/core_rpc_server.cpp
+index 6ea2d91d..24cbfbcd 100644
+--- a/src/rpc/core_rpc_server.cpp
++++ b/src/rpc/core_rpc_server.cpp
+@@ -16,6 +16,9 @@ using namespace epee;
+ #include "misc_language.h"
+ #include "crypto/hash.h"
+ #include "core_rpc_server_error_codes.h"
++#ifdef ZANO_SIMNET
++#include "currency_core/miner.h"
++#endif
+ #include "wallet/core_fast_rpc_proxy.h"
+ #include "wallet/fill_destination_helper.h"
+ 
+@@ -1825,6 +1828,58 @@ namespace currency
+   }
+ #endif // #ifdef CPU_MINING_ENABLED
+   //------------------------------------------------------------------------------------------------------------------------------
++#ifdef ZANO_SIMNET
++  bool core_rpc_server::on_generate_blocks(const COMMAND_RPC_GENERATE_BLOCKS::request& req, COMMAND_RPC_GENERATE_BLOCKS::response& res, epee::json_rpc::error& error_resp, connection_context& cntx)
++  {
++    currency::account_public_address addr = AUTO_VAL_INIT(addr);
++    if (!currency::get_account_address_from_str(addr, req.wallet_address))
++    {
++      error_resp.code = CORE_RPC_ERROR_CODE_WRONG_PARAM;
++      error_resp.message = "Failed to parse wallet_address: " + req.wallet_address;
++      return false;
++    }
++
++    for (uint64_t i = 0; i < req.amount_of_blocks; ++i)
++    {
++      currency::create_block_template_params  p = AUTO_VAL_INIT(p);
++      currency::create_block_template_response r = AUTO_VAL_INIT(r);
++      p.miner_address        = addr;
++      p.stakeholder_address  = addr;
++      p.pos                  = false;
++      p.ignore_pow_ts_check  = true;
++
++      if (!m_core.get_block_template(p, r))
++      {
++        error_resp.code = CORE_RPC_ERROR_CODE_INTERNAL_ERROR;
++        error_resp.message = "get_block_template failed at iteration " + std::to_string(i);
++        return false;
++      }
++
++      if (!currency::find_nonce_for_given_block(r.b, r.diffic, r.height))
++      {
++        error_resp.code = CORE_RPC_ERROR_CODE_INTERNAL_ERROR;
++        error_resp.message = "find_nonce_for_given_block failed at height " + std::to_string(r.height);
++        return false;
++      }
++
++      currency::block_verification_context bvc = AUTO_VAL_INIT(bvc);
++      m_core.handle_incoming_block(r.b, bvc);
++      if (bvc.m_verification_failed || !bvc.m_added_to_main_chain)
++      {
++        error_resp.code = CORE_RPC_ERROR_CODE_INTERNAL_ERROR;
++        error_resp.message = "block rejected at height " + std::to_string(r.height) +
++                             " (failed=" + std::to_string(bvc.m_verification_failed) +
++                             ", added=" + std::to_string(bvc.m_added_to_main_chain) + ")";
++        return false;
++      }
++    }
++
++    res.height = m_core.get_current_blockchain_size() - 1;
++    res.status = API_RETURN_CODE_OK;
++    return true;
++  }
++  //------------------------------------------------------------------------------------------------------------------------------
++#endif
+   bool core_rpc_server::on_getblockcount(const COMMAND_RPC_GETBLOCKCOUNT::request& req, COMMAND_RPC_GETBLOCKCOUNT::response& res, connection_context& cntx)
+   {
+     CHECK_CORE_READY();
+diff --git a/src/rpc/core_rpc_server.h b/src/rpc/core_rpc_server.h
+index 41114a5c..e220a785 100644
+--- a/src/rpc/core_rpc_server.h
++++ b/src/rpc/core_rpc_server.h
+@@ -66,6 +66,9 @@ namespace currency
+     
+ 
+     //json_rpc
++#ifdef ZANO_SIMNET
++    bool on_generate_blocks(const COMMAND_RPC_GENERATE_BLOCKS::request& req, COMMAND_RPC_GENERATE_BLOCKS::response& res, epee::json_rpc::error& error_resp, connection_context& cntx);
++#endif
+     bool on_getblockcount(const COMMAND_RPC_GETBLOCKCOUNT::request& req, COMMAND_RPC_GETBLOCKCOUNT::response& res, connection_context& cntx);
+     bool on_getblockhash(const COMMAND_RPC_GETBLOCKHASH::request& req, COMMAND_RPC_GETBLOCKHASH::response& res, epee::json_rpc::error& error_resp, connection_context& cntx);
+     bool on_getblocktemplate(const COMMAND_RPC_GETBLOCKTEMPLATE::request& req, COMMAND_RPC_GETBLOCKTEMPLATE::response& res, epee::json_rpc::error& error_resp, connection_context& cntx);
+@@ -140,6 +143,9 @@ namespace currency
+       MAP_URI_AUTO_BIN2("/get_pos_details.bin",       on_get_pos_mining_details,      COMMAND_RPC_GET_POS_MINING_DETAILS)
+       // JSON RPCs
+       BEGIN_JSON_RPC_MAP("/json_rpc")
++#ifdef ZANO_SIMNET
++        MAP_JON_RPC_WE("generateblocks",              on_generate_blocks,             COMMAND_RPC_GENERATE_BLOCKS)
++#endif
+         MAP_JON_RPC   ("getblockcount",               on_getblockcount,               COMMAND_RPC_GETBLOCKCOUNT)
+         MAP_JON_RPC_WE("on_getblockhash",             on_getblockhash,                COMMAND_RPC_GETBLOCKHASH)
+         MAP_JON_RPC   ("sendrawtransaction",          on_send_raw_tx,                 COMMAND_RPC_SEND_RAW_TX)
+diff --git a/src/rpc/core_rpc_server_commands_defs.h b/src/rpc/core_rpc_server_commands_defs.h
+index 58ec04ba..85d19bdd 100644
+--- a/src/rpc/core_rpc_server_commands_defs.h
++++ b/src/rpc/core_rpc_server_commands_defs.h
+@@ -1209,6 +1209,35 @@ namespace currency
+ 
+   //-----------------------------------------------
+ 
++#ifdef ZANO_SIMNET
++  struct COMMAND_RPC_GENERATE_BLOCKS
++  {
++    DOC_COMMAND("SIMNET ONLY: generates N blocks on demand (regtest-style).");
++
++    struct request
++    {
++      uint64_t    amount_of_blocks;
++      std::string wallet_address;
++
++      BEGIN_KV_SERIALIZE_MAP()
++        KV_SERIALIZE(amount_of_blocks)
++        KV_SERIALIZE(wallet_address)
++      END_KV_SERIALIZE_MAP()
++    };
++
++    struct response
++    {
++      uint64_t    height;
++      std::string status;
++
++      BEGIN_KV_SERIALIZE_MAP()
++        KV_SERIALIZE(height)
++        KV_SERIALIZE(status)
++      END_KV_SERIALIZE_MAP()
++    };
++  };
++#endif
++
+   struct COMMAND_RPC_GETBLOCKCOUNT
+   {
+     DOC_COMMAND("Returns the total number of blocks in the blockchain (the height of the top block plus one).");
