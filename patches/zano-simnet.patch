@@ -67,6 +67,46 @@ index eeae1d43..547a6ca7 100644
  
      de.amount = p.amount_this_coin_int; //std::cout << de.amount << ENDL;
      summary_premine_coins += de.amount;
+diff --git a/src/currency_core/blockchain_storage.cpp b/src/currency_core/blockchain_storage.cpp
+index 6fec5585..f083b9a1 100644
+--- a/src/currency_core/blockchain_storage.cpp
++++ b/src/currency_core/blockchain_storage.cpp
+@@ -1514,7 +1514,7 @@ wide_difficulty_type blockchain_storage::calc_diff_at_h_from_timestamps(std::vec
+   TIME_MEASURE_START_PD(target_calculating_calc);
+   if (m_core_runtime_config.is_hardfork_active_for_height(1, h))
+   {
+-    dif = next_difficulty_2(timestamps, commulative_difficulties, pos ? global_difficulty_pos_target : global_difficulty_pow_target, pos ? global_difficulty_pos_starter : global_difficulty_pow_starter);
++    dif = next_difficulty_2(timestamps, commulative_difficulties, pos ? global_difficulty_pos_target : global_difficulty_pow_target, pos ? m_core_runtime_config.pos_starter_difficulty : global_difficulty_pow_starter);
+ #if defined(TESTNET) && (CURRENCY_FORMATION_VERSION > 103)
+     if (pos && h > DIFFICULTY_POS_STARTER_TESTNET_HEIGHT)
+     {
+@@ -1526,7 +1526,7 @@ wide_difficulty_type blockchain_storage::calc_diff_at_h_from_timestamps(std::vec
+   }
+   else
+   {
+-    dif = next_difficulty_1(timestamps, commulative_difficulties, pos ? global_difficulty_pos_target : global_difficulty_pow_target, pos ? global_difficulty_pos_starter : global_difficulty_pow_starter);
++    dif = next_difficulty_1(timestamps, commulative_difficulties, pos ? global_difficulty_pos_target : global_difficulty_pow_target, pos ? m_core_runtime_config.pos_starter_difficulty : global_difficulty_pow_starter);
+   }
+   TIME_MEASURE_FINISH_PD(target_calculating_calc);
+   return dif;
+@@ -1643,7 +1643,7 @@ wide_difficulty_type blockchain_storage::get_next_difficulty_for_alternative_cha
+     commulative_difficulties.push_back(m_db_blocks[i]->cumulative_diff_precise);
+   } 
+ 
+-  return next_difficulty_1(timestamps, commulative_difficulties, pos ? DIFFICULTY_POS_TARGET:DIFFICULTY_POW_TARGET, pos ? global_difficulty_pos_starter : global_difficulty_pow_starter);
++  return next_difficulty_1(timestamps, commulative_difficulties, pos ? DIFFICULTY_POS_TARGET:DIFFICULTY_POW_TARGET, pos ? m_core_runtime_config.pos_starter_difficulty : global_difficulty_pow_starter);
+ }
+ //------------------------------------------------------------------
+ bool blockchain_storage::prevalidate_miner_transaction(const block& b, uint64_t height, bool pos) const
+@@ -3605,7 +3605,7 @@ bool blockchain_storage::forecast_difficulty(std::vector<std::pair<uint64_t, wid
+    out_height_2_diff_vector.push_back(std::make_pair(height, last_block_diff_for_this_type)); // the first element corresponds to the last block of this type
+    for (size_t i = 0; i < DIFFICULTY_CUT; ++i)
+    {
+-     wide_difficulty_type diff = next_difficulty_1(timestamps, cumulative_difficulties, target_seconds, pos ? global_difficulty_pos_starter : global_difficulty_pow_starter);
++     wide_difficulty_type diff = next_difficulty_1(timestamps, cumulative_difficulties, target_seconds, pos ? m_core_runtime_config.pos_starter_difficulty : global_difficulty_pow_starter);
+      height += avg_interval;
+      out_height_2_diff_vector.push_back(std::make_pair(height, diff));
+  
 diff --git a/src/currency_core/checkpoints_create.h b/src/currency_core/checkpoints_create.h
 index 49d10037..c5bed4de 100644
 --- a/src/currency_core/checkpoints_create.h
@@ -81,6 +121,26 @@ index 49d10037..c5bed4de 100644
  
  #else
      // MAINNET
+diff --git a/src/currency_core/core_runtime_config.h b/src/currency_core/core_runtime_config.h
+index 92bc78bd..e302954d 100644
+--- a/src/currency_core/core_runtime_config.h
++++ b/src/currency_core/core_runtime_config.h
+@@ -113,6 +113,7 @@ namespace currency
+     core_time_func_t get_core_time;
+     uint64_t hf4_minimum_mixins;
+     wide_difficulty_type max_pos_difficulty;
++    wide_difficulty_type pos_starter_difficulty; // seeds the PoS retarget; equilibrium scales with total stake, so a header constant only fits one stand
+     uint64_t pre_hardfork_tx_freeze_period; // number of blocks before the hardfork activatio when no new txs are accepted (effective from HF5); 0 means feature is switched off
+ 
+     hard_forks_descriptor hard_forks;
+@@ -144,6 +145,7 @@ namespace currency
+     pc.max_alt_blocks = CURRENCY_ALT_BLOCK_MAX_COUNT;
+     pc.hf4_minimum_mixins = CURRENCY_HF4_MANDATORY_DECOY_SET_SIZE;
+     pc.max_pos_difficulty = wide_difficulty_type(POS_MAX_DIFFICULTY_ALLOWED);
++    pc.pos_starter_difficulty = wide_difficulty_type(DIFFICULTY_POS_STARTER);
+     pc.pre_hardfork_tx_freeze_period = CURRENCY_PRE_HARDFORK_TX_FREEZE_PERIOD;
+     
+     // TODO: refactor the following
 diff --git a/src/currency_core/currency_config.h b/src/currency_core/currency_config.h
 index a08c60bf..c8070176 100644
 --- a/src/currency_core/currency_config.h
@@ -250,6 +310,61 @@ index f26ee95f..ba4b9296 100644
  
  extern const crypto::public_key ggenesis_tx_pub_key;
  
+diff --git a/src/daemon/daemon.cpp b/src/daemon/daemon.cpp
+index d0b1445c..fc147c26 100644
+--- a/src/daemon/daemon.cpp
++++ b/src/daemon/daemon.cpp
+@@ -43,6 +43,13 @@ const uint64_t recommended_ram_for_full_warp_mode = 64ULL * 1024ULL * 1024ULL *
+ //TODO: need refactoring here. (template classes can't be used in BOOST_CLASS_VERSION) 
+ BOOST_CLASS_VERSION(nodetool::node_server<currency::t_currency_protocol_handler<currency::core> >, CURRENT_P2P_STORAGE_ARCHIVE_VER);
+ 
++#ifdef ZANO_SIMNET
++// SIMNET only. The PoS retarget is seeded by DIFFICULTY_POS_STARTER, and the equilibrium
++// it converges to is proportional to the total stake of the scenario -- measured factor
++// ~130 of the stake in atomic units. A header constant is therefore correct for exactly
++// one stand; every other one burns hundreds of blocks climbing. See roadmap item 3.1a.
++const command_line::arg_descriptor<std::string> arg_pos_starter_difficulty("pos-starter-difficulty", "SIMNET only: override the PoS starter difficulty (decimal, up to 128 bit)");
++#endif
+ const command_line::arg_descriptor<uint32_t>    arg_rpc_server_threads("rpc-server-threads", "Specify number of RPC server threads. Default: 10", RPC_SERVER_DEFAULT_THREADS_NUM);
+ const command_line::arg_descriptor<bool>        arg_do_warp_mode("do-warp-mode", "This option pre-loads and unserialize all data into RAM and provide significant speed increase in RPC-handling, requires 32GB psychical RAM at least(64GB recommended). Might be helpful for production servers(like remote nodes or public nodes for mobile apps).");
+ 
+@@ -172,6 +179,9 @@ int main(int argc, char* argv[])
+   command_line::add_arg(desc_cmd_sett, command_line::arg_disable_ntp);
+ 
+   command_line::add_arg(desc_cmd_sett, arg_rpc_server_threads);
++#ifdef ZANO_SIMNET
++  command_line::add_arg(desc_cmd_sett, arg_pos_starter_difficulty);
++#endif
+   command_line::add_arg(desc_cmd_sett, arg_do_warp_mode); 
+ 
+   arg_market_disable.default_value = true;
+@@ -350,6 +360,26 @@ int main(int argc, char* argv[])
+   CHECK_AND_ASSERT_MES(res, 1, "Failed to initialize core");
+   LOG_PRINT_L0("Core initialized OK");
+ 
++#ifdef ZANO_SIMNET
++  if (command_line::has_arg(vm, arg_pos_starter_difficulty))
++  {
++    const std::string v = command_line::get_arg(vm, arg_pos_starter_difficulty);
++    currency::core_runtime_config rtc = ccore.get_blockchain_storage().get_core_runtime_config();
++    try
++    {
++      rtc.pos_starter_difficulty = currency::wide_difficulty_type(v);
++    }
++    catch (...)
++    {
++      LOG_ERROR("--pos-starter-difficulty: cannot parse '" << v << "'");
++      return 1;
++    }
++    CHECK_AND_ASSERT_MES(rtc.pos_starter_difficulty != 0, 1, "--pos-starter-difficulty must be non-zero");
++    ccore.get_blockchain_storage().set_core_runtime_config(rtc);
++    LOG_PRINT_YELLOW("SIMNET: PoS starter difficulty set to " << rtc.pos_starter_difficulty, LOG_LEVEL_0);
++  }
++#endif
++
+   if (stratum_enabled)
+   {
+     LOG_PRINT_L0("Initializing stratum server...");
 diff --git a/src/rpc/core_rpc_server.cpp b/src/rpc/core_rpc_server.cpp
 index 6ea2d91d..24cbfbcd 100644
 --- a/src/rpc/core_rpc_server.cpp
