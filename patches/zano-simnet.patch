@@ -122,7 +122,7 @@ index 49d10037..c5bed4de 100644
  #else
      // MAINNET
 diff --git a/src/currency_core/core_runtime_config.h b/src/currency_core/core_runtime_config.h
-index 92bc78bd..e302954d 100644
+index 92bc78bd..10dea035 100644
 --- a/src/currency_core/core_runtime_config.h
 +++ b/src/currency_core/core_runtime_config.h
 @@ -113,6 +113,7 @@ namespace currency
@@ -133,7 +133,58 @@ index 92bc78bd..e302954d 100644
      uint64_t pre_hardfork_tx_freeze_period; // number of blocks before the hardfork activatio when no new txs are accepted (effective from HF5); 0 means feature is switched off
  
      hard_forks_descriptor hard_forks;
-@@ -144,6 +145,7 @@ namespace currency
+@@ -134,6 +135,50 @@ namespace currency
+     }
+   };
+ 
++#ifdef ZANO_SIMNET
++  // Simnet: process-wide overrides, set from the command line BEFORE the core or any
++  // wallet2 is constructed. get_default_core_runtime_config() applies them, so every
++  // construction site in both binaries (5 in simplewallet alone) picks them up without
++  // per-site plumbing. The wallet never receives the schedule from the daemon at
++  // runtime -- wallet2::set_core_runtime_config is called by tests only -- and the RPC
++  // exposes active flags, not heights, so a shared default is the only single point.
++  struct simnet_runtime_overrides
++  {
++    bool hard_forks_set = false;
++    hard_forks_descriptor hard_forks;
++  };
++  inline simnet_runtime_overrides& get_simnet_runtime_overrides()
++  {
++    static simnet_runtime_overrides overrides{};
++    return overrides;
++  }
++  // Parses repeatable "<id>:<height>" specs (--hard-fork). Mind set_hardfork_height:
++  // it back-fills all UNSET previous forks to the same height. Convenient for
++  // "--hard-fork=4:10" (forks 1-3 also land on 10), but a lagging-node schedule like
++  // "6:999999" must list the earlier forks explicitly FIRST, or they all move away.
++  inline bool simnet_set_hardfork_overrides(const std::vector<std::string>& specs, std::string& err)
++  {
++    hard_forks_descriptor hfd{};
++    for (const auto& s : specs)
++    {
++      const auto colon = s.find(':');
++      uint64_t id = 0, h = 0;
++      if (colon == std::string::npos
++        || !epee::string_tools::get_xtype_from_string(id, s.substr(0, colon))
++        || !epee::string_tools::get_xtype_from_string(h, s.substr(colon + 1))
++        || id == 0 || id >= ZANO_HARDFORKS_TOTAL)
++      {
++        err = std::string("bad --hard-fork spec '") + s + "', expected <id>:<height> with 0 < id < " + std::to_string(ZANO_HARDFORKS_TOTAL);
++        return false;
++      }
++      hfd.set_hardfork_height(id, h);
++    }
++    get_simnet_runtime_overrides().hard_forks = hfd;
++    get_simnet_runtime_overrides().hard_forks_set = true;
++    return true;
++  }
++#endif
++
+   inline core_runtime_config get_default_core_runtime_config()
+   {
+     core_runtime_config pc{};
+@@ -144,6 +189,7 @@ namespace currency
      pc.max_alt_blocks = CURRENCY_ALT_BLOCK_MAX_COUNT;
      pc.hf4_minimum_mixins = CURRENCY_HF4_MANDATORY_DECOY_SET_SIZE;
      pc.max_pos_difficulty = wide_difficulty_type(POS_MAX_DIFFICULTY_ALLOWED);
@@ -141,6 +192,17 @@ index 92bc78bd..e302954d 100644
      pc.pre_hardfork_tx_freeze_period = CURRENCY_PRE_HARDFORK_TX_FREEZE_PERIOD;
      
      // TODO: refactor the following
+@@ -158,6 +204,10 @@ namespace currency
+     pc.get_core_time = &core_runtime_config::_default_core_time_function;
+     bool r = epee::string_tools::hex_to_pod(ALIAS_SHORT_NAMES_VALIDATION_PUB_KEY, pc.alias_validation_pubkey);
+     CHECK_AND_ASSERT_THROW_MES(r, "failed to parse alias_validation_pub_key");
++#ifdef ZANO_SIMNET
++    if (get_simnet_runtime_overrides().hard_forks_set)
++      pc.hard_forks = get_simnet_runtime_overrides().hard_forks;
++#endif
+     return pc;
+   }
+ }
 diff --git a/src/currency_core/currency_config.h b/src/currency_core/currency_config.h
 index a08c60bf..c8070176 100644
 --- a/src/currency_core/currency_config.h
@@ -311,10 +373,10 @@ index f26ee95f..ba4b9296 100644
  extern const crypto::public_key ggenesis_tx_pub_key;
  
 diff --git a/src/daemon/daemon.cpp b/src/daemon/daemon.cpp
-index d0b1445c..fc147c26 100644
+index d0b1445c..623ca268 100644
 --- a/src/daemon/daemon.cpp
 +++ b/src/daemon/daemon.cpp
-@@ -43,6 +43,13 @@ const uint64_t recommended_ram_for_full_warp_mode = 64ULL * 1024ULL * 1024ULL *
+@@ -43,6 +43,14 @@ const uint64_t recommended_ram_for_full_warp_mode = 64ULL * 1024ULL * 1024ULL *
  //TODO: need refactoring here. (template classes can't be used in BOOST_CLASS_VERSION) 
  BOOST_CLASS_VERSION(nodetool::node_server<currency::t_currency_protocol_handler<currency::core> >, CURRENT_P2P_STORAGE_ARCHIVE_VER);
  
@@ -324,21 +386,48 @@ index d0b1445c..fc147c26 100644
 +// ~130 of the stake in atomic units. A header constant is therefore correct for exactly
 +// one stand; every other one burns hundreds of blocks climbing. See roadmap item 3.1a.
 +const command_line::arg_descriptor<std::string> arg_pos_starter_difficulty("pos-starter-difficulty", "SIMNET only: override the PoS starter difficulty (decimal, up to 128 bit)");
++const command_line::arg_descriptor<std::vector<std::string>> arg_hard_fork("hard-fork", "SIMNET only: set hardfork activation height as <id>:<height>; repeatable. Unset earlier forks are back-filled to the lowest given height, later ones stay disabled");
 +#endif
  const command_line::arg_descriptor<uint32_t>    arg_rpc_server_threads("rpc-server-threads", "Specify number of RPC server threads. Default: 10", RPC_SERVER_DEFAULT_THREADS_NUM);
  const command_line::arg_descriptor<bool>        arg_do_warp_mode("do-warp-mode", "This option pre-loads and unserialize all data into RAM and provide significant speed increase in RPC-handling, requires 32GB psychical RAM at least(64GB recommended). Might be helpful for production servers(like remote nodes or public nodes for mobile apps).");
  
-@@ -172,6 +179,9 @@ int main(int argc, char* argv[])
+@@ -172,6 +180,10 @@ int main(int argc, char* argv[])
    command_line::add_arg(desc_cmd_sett, command_line::arg_disable_ntp);
  
    command_line::add_arg(desc_cmd_sett, arg_rpc_server_threads);
 +#ifdef ZANO_SIMNET
 +  command_line::add_arg(desc_cmd_sett, arg_pos_starter_difficulty);
++  command_line::add_arg(desc_cmd_sett, arg_hard_fork);
 +#endif
    command_line::add_arg(desc_cmd_sett, arg_do_warp_mode); 
  
    arg_market_disable.default_value = true;
-@@ -350,6 +360,26 @@ int main(int argc, char* argv[])
+@@ -261,6 +273,24 @@ int main(int argc, char* argv[])
+   bool stratum_enabled = currency::stratum_server::should_start(vm);
+   LOG_PRINT("Module folder: " << argv[0] << ", data folder: " << data_dir, LOG_LEVEL_0);
+ 
++#ifdef ZANO_SIMNET
++  // Must run BEFORE currency::core is constructed below: blockchain_storage copies the
++  // runtime config in its constructor and hands it to the services manager right there.
++  // NB: has_arg is useless for vector args: make_semantic gives them an implicit empty
++  // default, so vm always holds a value and has_arg is always true. Check emptiness.
++  const auto hf_specs = command_line::get_arg(vm, arg_hard_fork);
++  if (!hf_specs.empty())
++  {
++    std::string hf_err;
++    if (!currency::simnet_set_hardfork_overrides(hf_specs, hf_err))
++    {
++      LOG_ERROR(hf_err);
++      return 1;
++    }
++    LOG_PRINT_YELLOW("SIMNET: hardfork schedule overridden from the command line", LOG_LEVEL_0);
++  }
++#endif
++
+   //create objects and link them
+   bc_services::bc_offers_service offers_service(nullptr);
+   offers_service.set_disabled(true); //disable by default
+@@ -350,6 +380,26 @@ int main(int argc, char* argv[])
    CHECK_AND_ASSERT_MES(res, 1, "Failed to initialize core");
    LOG_PRINT_L0("Core initialized OK");
  
@@ -502,3 +591,67 @@ index 58ec04ba..85d19bdd 100644
    struct COMMAND_RPC_GETBLOCKCOUNT
    {
      DOC_COMMAND("Returns the total number of blocks in the blockchain (the height of the top block plus one).");
+diff --git a/src/simplewallet/simplewallet.cpp b/src/simplewallet/simplewallet.cpp
+index 9ef76c21..cf3a081a 100644
+--- a/src/simplewallet/simplewallet.cpp
++++ b/src/simplewallet/simplewallet.cpp
+@@ -130,6 +130,9 @@ namespace
+   const command_line::arg_descriptor<bool>          arg_dont_set_date  ( "no-set-creation-date", "Do not set wallet creation date", false);
+   const command_line::arg_descriptor<int>           arg_daemon_port  ("daemon-port", "Use daemon instance at port <arg> instead of default", 0);
+   const command_line::arg_descriptor<bool>          arg_do_pos_mining  ( "do-pos-mining", "Do PoS mining", false);
++#ifdef ZANO_SIMNET
++  const command_line::arg_descriptor<std::vector<std::string>> arg_hard_fork  ( "hard-fork", "SIMNET only: set hardfork activation height as <id>:<height>; repeatable. MUST match the daemon's schedule -- the wallet cannot learn it over RPC");
++#endif
+   const command_line::arg_descriptor<std::string>   arg_pos_mining_reward_address  ( "pos-mining-reward-address", "Block reward will be sent to the giving address if specified(Not recommended, as this may have privacy implications.)", "" );
+   const command_line::arg_descriptor<std::string>   arg_pos_mining_defrag  ( "pos-mining-defrag", "<min_outs_cnt>,<max_outs_cnt>,<amount_limit>|disable Generate defragmentation tx for small outputs each time a PoS block is found. Disabled by default. If empty string given, the default params used: " STR(DEFAULT_WALLET_MIN_UTXO_COUNT_FOR_DEFRAGMENTATION_TX) "," STR(DEFAULT_WALLET_MAX_UTXO_COUNT_FOR_DEFRAGMENTATION_TX) ",1.0", "disable" );
+   const command_line::arg_descriptor<std::string>   arg_restore_wallet  ( "restore-wallet", "Restore wallet from seed phrase or tracking seed and save it to <arg>", "" );
+@@ -3765,6 +3768,9 @@ int main(int argc, char* argv[])
+   command_line::add_arg(desc_params, arg_dont_refresh);
+   command_line::add_arg(desc_params, arg_dont_set_date);
+   command_line::add_arg(desc_params, arg_do_pos_mining);
++#ifdef ZANO_SIMNET
++  command_line::add_arg(desc_params, arg_hard_fork);
++#endif
+   command_line::add_arg(desc_params, arg_pos_mining_reward_address);
+   command_line::add_arg(desc_params, arg_pos_mining_defrag);
+   command_line::add_arg(desc_params, arg_restore_wallet);
+@@ -3853,6 +3859,27 @@ int main(int argc, char* argv[])
+     message_writer(epee::log_space::console_color_white, true) << "Log level changed: " << old_log_level << " -> " << new_log_level;
+   }
+ 
++#ifdef ZANO_SIMNET
++  // Must run BEFORE any wallet2 is constructed (five sites below): the wallet takes its
++  // schedule from get_default_core_runtime_config() in its constructor, and nothing ever
++  // pushes the daemon's schedule into a wallet at runtime. The schedule drives the tx
++  // version, hf4_minimum_mixins and the Zarcanum PoS mode, so a mismatch with the
++  // daemon diverges silently -- pass the SAME --hard-fork list to both binaries.
++  // NB: has_arg is useless for vector args: make_semantic gives them an implicit empty
++  // default, so vm always holds a value and has_arg is always true. Check emptiness.
++  const auto hf_specs = command_line::get_arg(vm, arg_hard_fork);
++  if (!hf_specs.empty())
++  {
++    std::string hf_err;
++    if (!currency::simnet_set_hardfork_overrides(hf_specs, hf_err))
++    {
++      fail_msg_writer() << hf_err;
++      return EXIT_FAILURE;
++    }
++    message_writer(epee::log_space::console_color_yellow, true) << "SIMNET: hardfork schedule overridden from the command line";
++  }
++#endif
++
+   if (command_line::has_arg(vm, command_line::arg_generate_rpc_autodoc))
+   {
+     tools::wallet_rpc_server wallet_rpc_server(std::shared_ptr<tools::wallet2>(new tools::wallet2()));
+diff --git a/src/wallet/core_default_rpc_proxy.cpp b/src/wallet/core_default_rpc_proxy.cpp
+index 008599d2..62d96750 100644
+--- a/src/wallet/core_default_rpc_proxy.cpp
++++ b/src/wallet/core_default_rpc_proxy.cpp
+@@ -50,6 +50,7 @@ namespace tools
+     {
+       rsp.current_height = res.current_height;
+       rsp.start_height = res.start_height;
++      rsp.current_hardfork = res.current_hardfork; // upstream bug: was lost in the FAST->DIRECT translation, permanently disabling the hardfork mismatch check at wallet2.cpp:1860 for any wallet connected over HTTP
+       r = unserialize_block_complete_entry(res, rsp);
+     }
+     return r;
